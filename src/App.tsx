@@ -693,9 +693,17 @@ export default function App() {
     }
     audio.playSfx('ui-click');
     if (profile.shieldEquipped) {
-      updateProfile({ shieldEquipped: false });
-      showToast(t(profile, 'Щит снят', 'Shield unequipped'), 'info');
+      // Unequip shield → restore Heavy Charge if available
+      updateProfile({ shieldEquipped: false, shieldHits: profile.shieldLevel * SHIELD_HITS_MULTIPLIER });
+      showToast(t(profile, 'Щит снят, рывок восстановлен', 'Shield unequipped, charge restored'), 'info');
     } else {
+      // Check if warrior has Heavy Charge unlocked → mutual exclusivity
+      const char = CHARACTERS.find(c => c.id === profile.equippedCharacter)!;
+      const unlocked = profile.unlockedSkills[profile.equippedCharacter] || [];
+      if (char.id === 'warrior' && unlocked.includes('w_charge')) {
+        showToast(t(profile, 'Тяжёлый Прорыв несовместим с щитом. Сначала снимите рывок в навыках.', 'Heavy Charge incompatible with shield. Remove charge skill first.'), 'error');
+        return;
+      }
       const maxHits = profile.shieldLevel * SHIELD_HITS_MULTIPLIER;
       updateProfile({ shieldEquipped: true, shieldHits: maxHits });
       showToast(t(profile, 'Щит экипирован (заряд заменяет рывок)', 'Shield equipped (charge replaced)'), 'success');

@@ -39,6 +39,8 @@ interface Projectile {
   color: string;
   isArrow: boolean;
   isMagic: boolean;
+  chainTargetId?: string;
+  isChain: boolean;
 }
 
 interface Particle {
@@ -645,17 +647,77 @@ export class CombatEngine {
         this.spawnProjectile(p.x, p.y, p.facing, dmg, '#5fa0ff', true, false, true);
         break;
       case 'assassin':
-        audio.playSfx('chain-hit');
-        this.spawnChainEffect(p.x, p.y, p.facing);
-        this.dealAoeDamage(p.x, p.y, 90, dmg, p.facing);
-        if (this.hasSkill('s_poison')) {
-          this.applyPoisonToNearby(p.x, p.y, 90, dmg * 0.3);
-        }
-        if (this.hasSkill('s_lifesteal')) {
-          p.health = Math.min(p.maxHealth, p.health + dmg * 0.15);
+        // Assassin LMB: chain throw
+        const chainTarget = this.findNearestEnemy(p.x, p.y, 250);
+        if (chainTarget) {
+          const dx = chainTarget.x - p.x;
+          const dy = chainTarget.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          // Throw chain projectile
+          const chainProj: any = {
+            x: p.x, y: p.y,
+            vx: nx * 700, vy: ny * 700,
+            damage: 0, radius: 4, life: 0.5,
+            fromPlayer: true, isArrow: false, isMagic: false,
+            chainTargetId: chainTarget.id,
+            isChain: true,
+            color: '#c0c0c0',
+          };
+          (this.projectiles as any).push(chainProj);
+          // Miss → chain returns to player
+          setTimeout(() => {
+            if (!this.running) return;
+            const stillThere = this.enemies.find(e => e.id === chainTarget.id && !e.isDying);
+            if (!stillThere) {
+              // Miss: return chain to player
+              this.spawnFloatingText(p.x, p.y - 20, this.profile.language === 'ru' ? 'Мимо! Цепь вернулась' : 'Miss! Chain returned', '#8888a0');
+              this.spawnChainEffect(p.x, p.y, { x: 0, y: 0 });
+            } else {
+              // Hit: pull assassin to enemy, overshoot and crit from behind
+              const overshootX = chainTarget.x + nx * 30;
+              const overshootY = chainTarget.y + ny * 30;
+              p.x = Math.max(20, Math.min(this.width - 20, overshootX));
+              p.y = Math.max(20, Math.min(this.height - 20, overshootY));
+              // Crit from behind: 2.5x damage
+              const critDmg = dmg * 2.5;
+              chainTarget.health -= critDmg;
+              chainTarget.hitFlash = 0.3;
+              this.spawnChainEffect(p.x, p.y, { x: -nx, y: -ny });
+              this.spawnHitParticles(chainTarget.x, chainTarget.y, '#df3fdf');
+              this.spawnFloatingText(chainTarget.x, chainTarget.y - 20, Math.floor(critDmg) + ' (КРИТ!)', '#df3fdf');
+              audio.playSfx('chain-hit');
+              if (this.hasSkill('s_poison')) {
+                this.applyPoisonToNearby(chainTarget.x, chainTarget.y, 90, dmg * 0.3);
+              }
+              if (this.hasSkill('s_lifesteal')) {
+                p.health = Math.min(p.maxHealth, p.health + critDmg * 0.15);
+              }
+            }
+          }, 250);
+        } else {
+          // No target in range: small arc slash
+          this.spawnChainEffect(p.x, p.y, p.facing);
+          this.dealAoeDamage(p.x, p.y, 60, dmg * 0.5, p.facing);
+          audio.playSfx('chain-hit');
         }
         break;
     }
+  }
+
+  findNearestEnemy(x: number, y: number, maxRange: number): Enemy | null {
+    let nearest: Enemy | null = null;
+    let nearDist = maxRange;
+    for (const e of this.enemies) {
+      if (e.isDying || e.invuln > 0) continue;
+      const d = this.dist(x, y, e.x, e.y);
+      if (d < nearDist) {
+        nearDist = d;
+        nearest = e;
+      }
+    }
+    return nearest;
   }
 
   doUniqueAttack() {
@@ -692,6 +754,11 @@ export class CombatEngine {
         audio.playSfx('frost-nova');
         this.mageFrostNova();
         break;
+      case 'assassin':
+        // Assassin RMB: sickle arc (circular sweep)
+        audio.playSfx('chain-hit');
+        this.assassinSickleArc();
+        break;
     }
   }
 
@@ -702,10 +769,16 @@ export class CombatEngine {
       p.skillCooldown = 0.5;
       return;
     }
+    this.profile.shieldHits--;
+    this.callbacks.onProfileUpdate({ shieldHits: this.profile.shieldHits });
+    if (this.profile.shieldHits <= 0) {
+      this.callbacks.onProfileUpdate({ shieldEquipped: false, shieldHits: 0 });
+    }
     p.invuln = 1.5;
     this.spawnNovaEffect(p.x, p.y);
     this.spawnHitParticles(p.x, p.y, '#5fa0ff');
     this.spawnFloatingText(p.x, p.y - 25, this.profile.language === 'ru' ? 'ЩИТ!' : 'SHIELD!', '#5fa0ff');
+    this.callbacks.onShieldHit(this.profile.shieldHits);
   }
 
   warriorCharge() {
@@ -722,6 +795,36 @@ export class CombatEngine {
         e.attackCooldown = 1.0;
       }
     }
+  }
+
+  assassinSickleArc() {
+    const p = this.player;
+    const facingAngle = Math.atan2(p.facing.y, p.facing.x);
+    // Sweep 180 degrees arc centered on facing direction
+    for (let i = 0; i < 8; i++) {
+      const angle = facingAngle - Math.PI * 0.5 + (i / 7) * Math.PI;
+      const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+      this.spawnProjectile(p.x, p.y, dir, p.damage * 0.6, '#9b3c3c', true, false, false, false);
+    }
+    // Apply damage to enemies in arc range
+    for (const e of this.enemies) {
+      if (e.isDying || e.invuln > 0) continue;
+      const d = this.dist(p.x, p.y, e.x, e.y);
+      if (d < 100) {
+        const angleToEnemy = Math.atan2(e.y - p.y, e.x - p.x);
+        let diff = angleToEnemy - facingAngle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        if (Math.abs(diff) < Math.PI * 0.5) {
+          e.health -= p.damage * 0.6;
+          e.hitFlash = 0.2;
+          this.spawnHitParticles(e.x, e.y, '#9b3c3c');
+          this.spawnFloatingText(e.x, e.y, Math.floor(p.damage * 0.6).toString(), '#ff4444');
+          audio.playSfx('enemy-hit');
+        }
+      }
+    }
+    this.spawnChainEffect(p.x, p.y, p.facing);
   }
 
   archerArrowRain() {
@@ -776,7 +879,7 @@ export class CombatEngine {
     }
   }
 
-  spawnProjectile(x: number, y: number, dir: Vec2, damage: number, color: string, fromPlayer: boolean, isArrow: boolean, isMagic: boolean) {
+  spawnProjectile(x: number, y: number, dir: Vec2, damage: number, color: string, fromPlayer: boolean, isArrow: boolean, isMagic: boolean, isChain: boolean = false) {
     const speed = isMagic ? 500 : isArrow ? 600 : 400;
     this.projectiles.push({
       x, y,
@@ -789,6 +892,7 @@ export class CombatEngine {
       color,
       isArrow,
       isMagic,
+      isChain,
     });
   }
 
@@ -1253,10 +1357,13 @@ export class CombatEngine {
       audio.playSfx('player-hit');
       this.spawnHitParticles(p.x, p.y, '#5fa0ff');
       this.spawnFloatingText(p.x, p.y - 20, this.profile.language === 'ru' ? 'БЛОК' : 'BLOCK', '#5fa0ff');
-      // Shield broke
+      // Shield broke → auto-unequip
       if (this.profile.shieldHits <= 0) {
         this.spawnNovaEffect(p.x, p.y);
         audio.playSfx('enemy-death');
+        this.callbacks.onProfileUpdate({ shieldEquipped: false, shieldHits: 0 });
+        const lang = this.profile.language;
+        this.spawnFloatingText(p.x, p.y - 45, lang === 'ru' ? 'ЩИТ СЛОМАН!' : 'SHIELD BROKEN!', '#df3f3f');
       }
       this.callbacks.onShieldHit(this.profile.shieldHits);
       return;
@@ -1425,7 +1532,7 @@ export class CombatEngine {
       pr.x = Math.max(0, Math.min(this.width, pr.x));
       pr.y = Math.max(0, Math.min(this.height, pr.y));
 
-      if (pr.fromPlayer) {
+      if (pr.fromPlayer && !pr.isChain) {
         for (const e of this.enemies) {
           if (e.isDying) continue;
           if (e.invuln > 0) continue;
@@ -1441,6 +1548,13 @@ export class CombatEngine {
             this.projectiles.splice(i, 1);
             break;
           }
+        }
+      } else if (pr.fromPlayer && pr.isChain) {
+        // Chain projectile: check if it hit its specific target
+        const target = this.enemies.find(e => e.id === pr.chainTargetId && !e.isDying);
+        if (!target) {
+          // Target died or gone - chain will return (handled in setTimeout)
+          this.projectiles.splice(i, 1);
         }
       } else {
         if (this.dist(pr.x, pr.y, this.player.x, this.player.y) < 16 + pr.radius) {
@@ -1522,7 +1636,19 @@ export class CombatEngine {
       ctx.fillStyle = pr.color;
       ctx.shadowColor = pr.color;
       ctx.shadowBlur = 8;
-      if (pr.isArrow) {
+      if (pr.isChain) {
+        // Draw chain as a line from player to projectile
+        ctx.strokeStyle = pr.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(this.player.x, this.player.y);
+        ctx.lineTo(pr.x, pr.y);
+        ctx.stroke();
+        ctx.fillStyle = '#c0c0c0';
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (pr.isArrow) {
         const angle = Math.atan2(pr.vy, pr.vx);
         ctx.save();
         ctx.translate(pr.x, pr.y);
