@@ -1,4 +1,4 @@
-import type { CharacterDef, DungeonDef, EnemyDef, PotionDef, BagLevelDef, SaveProfile } from './types';
+import type { CharacterDef, DungeonDef, EnemyDef, PotionDef, BagLevelDef, SaveProfile, EnemyShape } from './types';
 
 export const CHARACTERS: CharacterDef[] = [
   {
@@ -766,7 +766,7 @@ const BOSS_ABILITY_POOL: { ru: string; en: string }[] = [
   { ru: 'Финальная сущность: случайное умение', en: 'Final entity: random ability' },
 ];
 
-const BOSS_NAMES_RU: Record<string, string[]> = [
+const BOSS_NAMES_RU: string[][] = [
   ['Хозяин Полей', 'Гоблин-Вождь', 'Лесной Страж', 'Корень-Древень', 'Лесной Дракончик', 'Полевой Титан', 'Зелёный Рыцарь', 'Дикий Вепрь', 'Лесная Горгулья', 'Король Слизней',
    'Лесной Маг', 'Шипастый Страж', 'Гнилой Великан', 'Травяной Голем', 'Лесная Ведьма', 'Корневой Властелин', 'Древний Лесной Дух', 'Лесной Пожиратель', 'Страж Поляны', 'Лесной Дракон'],
   ['Лесной Страж', 'Паучья Королева', 'Теневой Крадущийся', 'Лесной Призрак', 'Костяной Лучник', 'Тёмный Охотник', 'Лесной Убийца', 'Паучий Лорд', 'Теневой Маг', 'Гнилой Дух',
@@ -781,7 +781,7 @@ const BOSS_NAMES_RU: Record<string, string[]> = [
    'Дух Бездны', 'Око Тьмы', 'Теневой Голем', 'Пустотный Маг', 'Теневой Дракон', 'Дух Пустоты', 'Око Забвения', 'Теневой Пожиратель', 'Пустотный Лорд', 'Финальная Сущность Бездны'],
 ];
 
-const BOSS_NAMES_EN: Record<string, string[]> = [
+const BOSS_NAMES_EN: string[][] = [
   ['Field Lord', 'Goblin Chieftain', 'Forest Warden', 'Root Treant', 'Forest Drake', 'Field Titan', 'Green Knight', 'Wild Boar', 'Forest Gargoyle', 'Slime King',
    'Forest Mage', 'Thorn Guardian', 'Rotting Giant', 'Grass Golem', 'Forest Witch', 'Root Overlord', 'Ancient Forest Spirit', 'Forest Devourer', 'Glade Sentinel', 'Forest Dragon'],
   ['Forest Warden', 'Spider Queen', 'Shadow Stalker', 'Forest Phantom', 'Bone Archer', 'Dark Hunter', 'Forest Slayer', 'Spider Lord', 'Shadow Mage', 'Rotting Spirit',
@@ -827,6 +827,8 @@ export function generateDungeonBosses(dungeonId: string): EnemyDef[] {
   if (dgIdx < 0) return [];
   const namesRu = BOSS_NAMES_RU[dgIdx] || BOSS_NAMES_RU[0];
   const namesEn = BOSS_NAMES_EN[dgIdx] || BOSS_NAMES_EN[0];
+  const namesRuArr = Array.isArray(namesRu) ? namesRu : BOSS_NAMES_RU[0] || namesRu;
+  const namesEnArr = Array.isArray(namesEn) ? namesEn : BOSS_NAMES_EN[0] || namesEn;
   const shapes = BOSS_SHAPES_BY_DUNGEON[dungeonId] || BOSS_SHAPES_BY_DUNGEON['green_field'];
   const dg = DUNGEONS.find(d => d.id === dungeonId);
   const baseColor = dg?.bgGradient[0] || '#3faf2f';
@@ -839,7 +841,7 @@ export function generateDungeonBosses(dungeonId: string): EnemyDef[] {
     const shape: EnemyShape = isFinal ? (FINAL_BOSS_SHAPES[dungeonId] || 'dragon') : shapes[i % shapes.length];
     bosses.push({
       id: `${dungeonId}_boss_${i + 1}`,
-      name: { ru: namesRu[i] || `Босс ${i + 1}`, en: namesEn[i] || `Boss ${i + 1}` },
+      name: { ru: namesRuArr[i] || `Босс ${i + 1}`, en: namesEnArr[i] || `Boss ${i + 1}` },
       health: Math.floor((300 + i * 200) * statMult),
       damage: Math.floor((15 + i * 5) * statMult),
       speed: 0.9 + i * 0.05,
