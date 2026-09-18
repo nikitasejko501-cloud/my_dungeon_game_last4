@@ -77,7 +77,8 @@ export default function App() {
     exp: 0, expNeeded: 100, level: 1, gold: 0,
     potions: { health: 0, stamina: 0, revival: 0 },
     healthCd: 0, staminaCd: 0,
-    bossName: null as string | null, bossHp: 0,
+    bossName1: null as string | null, bossHp1: 0,
+    bossName2: null as string | null, bossHp2: 0,
   });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<CombatEngine | null>(null);
@@ -300,6 +301,22 @@ export default function App() {
       }
       updateProfile({ equippedDungeons: profile.equippedDungeons.filter(d => d !== dungeonId) });
     } else {
+      // Multi-equip rule: can only equip multiple dungeons if all have equal progress
+      const currentProgress = profile.equippedDungeons.length > 0
+        ? (profile.dungeonProgress[profile.equippedDungeons[0]] || 0)
+        : 0;
+      if (profile.equippedDungeons.length > 0) {
+        for (const dgId of profile.equippedDungeons) {
+          const prog = profile.dungeonProgress[dgId] || 0;
+          if (prog !== currentProgress) {
+            showToast(profile.language === 'ru'
+              ? 'Вы можете экипировать несколько подземелий одновременно, только если у них совпадает текущее количество пройденных волн!'
+              : 'You can equip multiple dungeons simultaneously only if they have the same number of completed waves!',
+              'error');
+            return;
+          }
+        }
+      }
       updateProfile({ equippedDungeons: [...profile.equippedDungeons, dungeonId] });
     }
     audio.playSfx('ui-click');
@@ -436,8 +453,14 @@ export default function App() {
         onWaveResult: (result, wave, goldEarned, expEarned) => {
           setWaveResult({ result, wave, gold: goldEarned, exp: expEarned });
         },
-        onBossHpChange: (bossName, hpPercent) => {
-          setHudData(prev => ({ ...prev, bossName, bossHp: hpPercent }));
+        onBossHpChange: (bossName1, hpPercent1, bossName2?, hpPercent2?) => {
+          setHudData(prev => ({
+            ...prev,
+            bossName1: bossName1 || null,
+            bossHp1: hpPercent1,
+            bossName2: bossName2 || null,
+            bossHp2: hpPercent2 ?? 0,
+          }));
         },
         onShieldHit: (remainingHits) => {
           // Update shield hits in profile via ref without causing re-render mid-combat
@@ -478,6 +501,10 @@ export default function App() {
           potions: { ...curProfile.ownedPotions },
           healthCd: e.healthPotionCooldown,
           staminaCd: e.staminaPotionCooldown,
+          bossName1: e.bossName1 || null,
+          bossHp1: e.bossHp1,
+          bossName2: e.bossName2 || null,
+          bossHp2: e.bossHp2,
         }));
       }, 100);
 
@@ -948,12 +975,20 @@ export default function App() {
             </div>
           </div>
 
-          {/* Boss HP bar */}
-          {hudData.bossName && (
-            <div className="boss-hp-bar-container">
-              <div className="boss-hp-name">{hudData.bossName}</div>
+          {/* Boss HP bars - up to 2 bars (one below another) for multi-boss waves */}
+          {hudData.bossName1 && (
+            <div className="boss-hp-bar-container" style={{ top: '16px', left: '50%', transform: 'translateX(-50%)' }}>
+              <div className="boss-hp-name">{hudData.bossName1}</div>
               <div className="boss-hp-bar-bg">
-                <div className="boss-hp-bar-fill" style={{ width: `${hudData.bossHp * 100}%` }} />
+                <div className="boss-hp-bar-fill" style={{ width: `${hudData.bossHp1 * 100}%` }} />
+              </div>
+            </div>
+          )}
+          {hudData.bossName2 && (
+            <div className="boss-hp-bar-container" style={{ top: hudData.bossName1 ? '52px' : '16px', left: '50%', transform: 'translateX(-50%)' }}>
+              <div className="boss-hp-name">{hudData.bossName2}</div>
+              <div className="boss-hp-bar-bg">
+                <div className="boss-hp-bar-fill" style={{ width: `${hudData.bossHp2 * 100}%` }} />
               </div>
             </div>
           )}

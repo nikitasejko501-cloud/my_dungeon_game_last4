@@ -92,7 +92,7 @@ export interface CombatCallbacks {
   onPotionUsed: (type: 'health' | 'stamina' | 'revival') => void;
   onPotionCooldownUpdate: (type: 'health' | 'stamina', cooldown: number, maxCooldown: number) => void;
   onWaveResult: (result: 'victory' | 'defeat', wave: number, goldEarned: number, expEarned: number) => void;
-  onBossHpChange: (bossName: string | null, hpPercent: number) => void;
+  onBossHpChange: (bossName1: string | null, hpPercent1: number, bossName2?: string | null, hpPercent2?: number) => void;
   onShieldHit: (remainingHits: number) => void;
 }
 
@@ -138,6 +138,10 @@ export class CombatEngine {
   bossHpBarVisible = false;
   bossHpPercent = 1;
   bossName = '';
+  bossName1: string | null = null;
+  bossHp1 = 0;
+  bossName2: string | null = null;
+  bossHp2 = 0;
 
   keys: Record<string, boolean> = {};
   mousePos: Vec2 = { x: 0, y: 0 };
@@ -344,12 +348,21 @@ export class CombatEngine {
 
     if (isBossWave) {
       const bossIndex = Math.floor(this.currentWave / BOSS_WAVE_INTERVAL) - 1;
-      for (const dg of dungeonDefs) {
+      // On boss waves with multiple equipped dungeons, spawn up to 2 bosses (one from each of first 2 dungeons)
+      const maxBosses = Math.min(2, dungeonDefs.length);
+      for (let i = 0; i < maxBosses; i++) {
+        const dg = dungeonDefs[i];
         const proceduralBosses = generateDungeonBosses(dg.id);
         const bossDef = proceduralBosses[bossIndex % proceduralBosses.length];
         if (bossDef) {
           this.spawnEnemy(bossDef, combinedMult, true, healthMult, damageMult);
         }
+      }
+      // Set boss wave subtext for multi-dungeon
+      if (dungeonDefs.length > 1) {
+        this.waveTransitionSubtext = 'Внимание! Силы подземелий объединились. Вас ждут два босса с комбинированными способностями!';
+      } else {
+        this.waveTransitionSubtext = 'BOSS WAVE';
       }
     } else {
       // Collect procedural tier enemies from equipped dungeons, filtered by minWave
@@ -433,8 +446,16 @@ export class CombatEngine {
     if (isBoss && this.currentWave % BOSS_WAVE_INTERVAL === 0) {
       this.bossHpBarVisible = true;
       this.bossHpPercent = 1;
-      this.bossName = this.profile.language === 'ru' ? def.name.ru : def.name.en;
-      this.callbacks.onBossHpChange(this.bossName, 1);
+      // Assign to bossName1 or bossName2
+      if (!this.bossName1) {
+        this.bossName1 = this.profile.language === 'ru' ? def.name.ru : def.name.en;
+        this.bossHp1 = 1;
+        this.callbacks.onBossHpChange(this.bossName1, 1, null, 0);
+      } else if (!this.bossName2) {
+        this.bossName2 = this.profile.language === 'ru' ? def.name.ru : def.name.en;
+        this.bossHp2 = 1;
+        this.callbacks.onBossHpChange(this.bossName1, this.bossHp1, this.bossName2, 1);
+      }
     }
   }
 
@@ -987,11 +1008,27 @@ export class CombatEngine {
     }
 
     if (bossCount > 0 && this.currentWave % BOSS_WAVE_INTERVAL === 0) {
-      this.bossHpPercent = totalBossHp / bossCount;
-      this.callbacks.onBossHpChange(this.bossName, this.bossHpPercent);
+      const bossList = this.enemies.filter(e => e.isBoss && !e.isDying);
+      if (bossList.length === 1) {
+        this.bossName1 = this.profile.language === 'ru' ? bossList[0].def.name.ru : bossList[0].def.name.en;
+        this.bossHp1 = bossList[0].health / bossList[0].maxHealth;
+        this.bossName2 = null;
+        this.bossHp2 = 0;
+        this.callbacks.onBossHpChange(this.bossName1, this.bossHp1, null, 0);
+      } else if (bossList.length >= 2) {
+        this.bossName1 = this.profile.language === 'ru' ? bossList[0].def.name.ru : bossList[0].def.name.en;
+        this.bossHp1 = bossList[0].health / bossList[0].maxHealth;
+        this.bossName2 = this.profile.language === 'ru' ? bossList[1].def.name.ru : bossList[1].def.name.en;
+        this.bossHp2 = bossList[1].health / bossList[1].maxHealth;
+        this.callbacks.onBossHpChange(this.bossName1, this.bossHp1, this.bossName2, this.bossHp2);
+      }
     } else if (this.bossHpBarVisible) {
       this.bossHpBarVisible = false;
-      this.callbacks.onBossHpChange(null, 0);
+      this.bossName1 = null;
+      this.bossHp1 = 0;
+      this.bossName2 = null;
+      this.bossHp2 = 0;
+      this.callbacks.onBossHpChange(null, 0, null, 0);
     }
   }
 
