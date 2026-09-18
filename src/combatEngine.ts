@@ -430,7 +430,7 @@ export class CombatEngine {
       invuln: 0,
     });
 
-    if (isBoss) {
+    if (isBoss && this.currentWave % BOSS_WAVE_INTERVAL === 0) {
       this.bossHpBarVisible = true;
       this.bossHpPercent = 1;
       this.bossName = this.profile.language === 'ru' ? def.name.ru : def.name.en;
@@ -971,6 +971,10 @@ export class CombatEngine {
         }
       }
 
+      // Clamp enemy to canvas bounds
+      e.x = Math.max(e.def.radius, Math.min(this.width - e.def.radius, e.x));
+      e.y = Math.max(e.def.radius, Math.min(this.height - e.def.radius, e.y));
+
       if (e.isBoss && e.bossAbilityCooldown <= 0) {
         this.doBossAbility(e);
         e.bossAbilityCooldown = 5;
@@ -982,7 +986,7 @@ export class CombatEngine {
       }
     }
 
-    if (bossCount > 0) {
+    if (bossCount > 0 && this.currentWave % BOSS_WAVE_INTERVAL === 0) {
       this.bossHpPercent = totalBossHp / bossCount;
       this.callbacks.onBossHpChange(this.bossName, this.bossHpPercent);
     } else if (this.bossHpBarVisible) {
@@ -1277,6 +1281,7 @@ export class CombatEngine {
     if (this.profile.ownedPotions.stamina <= 0) return false;
     if (this.staminaPotionCooldown > 0 && this.staminaPotionUsedThisWave) return false;
 
+    this.profile.ownedPotions.stamina--;
     this.player.stamina = Math.min(this.player.maxStamina, this.player.stamina + POTION_STAMINA_AMOUNT);
     audio.playSfx('potion-stamina');
     this.spawnFloatingText(this.player.x, this.player.y - 20, '+' + POTION_STAMINA_AMOUNT + ' STA', '#3faf3f');
@@ -1378,6 +1383,10 @@ export class CombatEngine {
         this.projectiles.splice(i, 1);
         continue;
       }
+
+      // Clamp projectiles to canvas bounds
+      pr.x = Math.max(0, Math.min(this.width, pr.x));
+      pr.y = Math.max(0, Math.min(this.height, pr.y));
 
       if (pr.fromPlayer) {
         for (const e of this.enemies) {
