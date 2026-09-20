@@ -320,7 +320,7 @@ export class CombatEngine {
     const isBossWave = this.currentWave % BOSS_WAVE_INTERVAL === 0;
     const equippedDungeons = this.profile.equippedDungeons.length > 0
       ? this.profile.equippedDungeons
-      : ['green_field'];
+      : ['whispering_grove'];
 
     if (isBossWave) {
       this.enemiesNeededThisWave = equippedDungeons.length;
@@ -1595,7 +1595,7 @@ export class CombatEngine {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
 
-    const dg = DUNGEONS.find(d => d.id === (this.profile.equippedDungeons[0] || 'green_field'))!;
+    const dg = DUNGEONS.find(d => d.id === (this.profile.equippedDungeons[0] || 'whispering_grove'))!;
     const grad = ctx.createRadialGradient(this.width / 2, this.height / 2, 0, this.width / 2, this.height / 2, Math.max(this.width, this.height) / 1.5);
     grad.addColorStop(0, dg.bgGradient[0]);
     grad.addColorStop(1, dg.bgGradient[1]);
@@ -1689,7 +1689,7 @@ export class CombatEngine {
     }
   }
 
-  renderEnemy(e: Enemy) {
+    renderEnemy(e: Enemy) {
     const ctx = this.ctx;
     let alpha = 1;
     let scale = 1;
@@ -1705,7 +1705,7 @@ export class CombatEngine {
     }
 
     // Bosses render 2.5x larger
-    if (e.isBoss) scale *= 1.0;
+    if (e.isBoss) scale *= 2.5;
 
     ctx.globalAlpha = alpha;
 
@@ -1732,35 +1732,25 @@ export class CombatEngine {
       ctx.shadowBlur = 20;
     }
 
-    ctx.fillStyle = baseColor;
-    this.drawEnemyShape(ctx, shape, r, baseColor, e.hitFlash > 0);
+    if (e.isBoss) {
+      // Bosses: Pixel-art rendering via canvas grid (2.5x mob size)
+      this.drawBossPixelArt(ctx, e, r, baseColor, e.hitFlash > 0);
+    } else {
+      // Regular enemies: emoji rendering with hue-rotate and tier prefixes
+      ctx.fillStyle = baseColor;
+      const tierPrefix = e.def.hueShift ? Math.floor(e.def.hueShift / 18) : 0;
+      const emoji = this.getEnemyEmoji(e, shape);
+      const emojiSize = r * 2.5;
 
-    // Apply hue-rotate via filter for tier differentiation
-    if (hueShift > 0 && !e.hitFlash) {
-      ctx.filter = `hue-rotate(${hueShift}deg)`;
-      this.drawEnemyShape(ctx, shape, r, baseColor, false);
+      ctx.font = `normal normal ${emojiSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.filter = hueShift > 0 && !e.hitFlash ? `hue-rotate(${hueShift}deg)` : 'none';
+      ctx.fillText(emoji, 0, 0);
       ctx.filter = 'none';
     }
 
     ctx.shadowBlur = 0;
-
-    // Eyes
-    ctx.fillStyle = e.hitFlash > 0 ? '#fff' : '#ff4444';
-    ctx.beginPath();
-    ctx.arc(-r * 0.3, -r * 0.2, r * 0.15, 0, Math.PI * 2);
-    ctx.arc(r * 0.3, -r * 0.2, r * 0.15, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Boss crown
-    if (e.isBoss) {
-      ctx.fillStyle = '#f0c050';
-      ctx.beginPath();
-      ctx.moveTo(0, -r);
-      ctx.lineTo(-r * 0.3, -r * 0.5);
-      ctx.lineTo(r * 0.3, -r * 0.5);
-      ctx.closePath();
-      ctx.fill();
-    }
 
     // Status effects
     if (e.slowTimer > 0) {
@@ -2065,6 +2055,160 @@ export class CombatEngine {
         ctx.stroke();
         break;
     }
+  }
+
+  getEnemyEmoji(e: Enemy, shape: EnemyShape): string {
+    const tier = e.def.hueShift ? Math.floor(e.def.hueShift / 18) : 0;
+    const prefix = tier === 0 ? 'Молодой ' : tier >= 3 ? 'Древний ' : '';
+    const name = e.def.name.en.toLowerCase();
+
+    if (name.includes('goblin') || name.includes('гоблин')) return '👹';
+    if (name.includes('spider') || name.includes('паук')) return '🕷️';
+    if (name.includes('bat') || name.includes('летучая мышь')) {
+      const arrows = ['Young', 'Молодой'];
+      return arrows.includes(prefix) ? '🦇' : '🦇';
+    }
+    if (name.includes('skeleton') || name.includes('скелет')) return '💀';
+    if (name.includes('slime') || name.includes('слизень')) return '🟢';
+    if (name.includes('beetle') || name.includes('жук')) return '🪲';
+    if (name.includes('ghost') || name.includes('призрак')) return '👻';
+    if (name.includes('imp') || name.includes('имп')) return '🔥';
+    if (name.includes('wolf') || name.includes('волк')) return '🐺';
+    if (name.includes('crystal') || name.includes('кристалл')) return '🔮';
+    if (name.includes('golem') || name.includes('голем')) return '🗿';
+    if (name.includes('dragon') || name.includes('дракон')) return '🐉';
+    if (name.includes('eye') || name.includes('глаз')) return '👁️';
+    if (name.includes('spirit') || name.includes('дух')) return '🌫️';
+    if (name.includes('shadow') || name.includes('тень')) return '🌑';
+    if (name.includes('gargoyle') || name.includes('гаргулия')) return '🦇';
+
+    switch (shape) {
+      case 'blob': return '🟢';
+      case 'spider': return '🕷️';
+      case 'bat': return '🦇';
+      case 'beetle': return '🪲';
+      case 'spirit': return '👻';
+      case 'shadow': return '🌑';
+      case 'gargoyle': return '🦇';
+      case 'skeleton': return '💀';
+      case 'golem': return '🗿';
+      case 'imp': return '🔥';
+      case 'wolf': return '🐺';
+      case 'crystal': return '🔮';
+      case 'humanoid': return '👹';
+      case 'eye': return '👁️';
+      case 'dragon': return '🐉';
+      default: return '👹';
+    }
+  }
+
+  drawBossPixelArt(ctx: CanvasRenderingContext2D, e: Enemy, r: number, color: string, hit: boolean) {
+    const spriteW = 20;
+    const spriteH = 12;
+    const cellSize = (r * 2) / spriteW;
+
+    const bossName = e.def.name.en.toLowerCase();
+    const pattern = this.getBossPixelPattern(bossName, e.phase || 0);
+
+    ctx.fillStyle = hit ? '#fff' : color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1;
+
+    for (let y = 0; y < spriteH; y++) {
+      for (let x = 0; x < spriteW; x++) {
+        if (pattern[y] && pattern[y][x]) {
+          ctx.fillRect(-spriteW / 2 * cellSize + x * cellSize, -spriteH / 2 * cellSize + y * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    // Glowing eyes for boss
+    ctx.fillStyle = hit ? '#fff' : '#ffaa00';
+    const eyeY = -spriteH / 2 * cellSize + 3 * cellSize;
+    const eyeXLeft = -3 * cellSize;
+    const eyeXRight = 3 * cellSize;
+    ctx.fillRect(eyeXLeft, eyeY, cellSize * 2, cellSize * 2);
+    ctx.fillRect(eyeXRight, eyeY, cellSize * 2, cellSize * 2);
+
+    // Dark outline around the sprite
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = cellSize;
+    ctx.strokeRect(-spriteW / 2 * cellSize, -spriteH / 2 * cellSize, spriteW * cellSize, spriteH * cellSize);
+
+    ctx.restore();
+  }
+
+  getBossPixelPattern(name: string, phase: number): number[][] {
+    const bossPatterns: Record<string, (phase: number) => number[][]> = {
+      'goblin-destroyer': (p) => {
+        return [
+          [0,0,0,0,1,1,1,0,0,0],
+          [0,0,1,1,1,1,1,1,0,0],
+          [0,1,1,1,1,1,1,1,1,0],
+          [1,1,0,1,1,1,1,0,1,1],
+          [1,1,1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1,1,1],
+          [0,0,1,1,0,0,1,1,0,0],
+          [0,0,1,1,0,0,1,1,0,0],
+        ];
+      },
+      'dark-wizard': (p) => {
+        return [
+          [0,0,1,1,1,1,1,0,0,0],
+          [0,1,0,0,0,0,0,1,0,0],
+          [0,0,1,1,1,1,1,0,0,0],
+          [0,0,0,1,1,1,1,0,0,0],
+          [0,0,0,1,1,1,1,0,0,0],
+          [1,1,1,1,1,1,1,1,1,0],
+          [0,0,0,1,1,1,1,0,0,0],
+          [0,0,0,1,1,1,1,0,0,0],
+          [0,0,1,1,0,0,1,1,0,0],
+        ];
+      },
+      'shadow-beast': (p) => {
+        return [
+          [0,0,0,1,1,1,1,0,0,0],
+          [0,0,1,1,1,1,1,1,0,0],
+          [0,1,1,1,1,1,1,1,1,0],
+          [1,1,1,1,1,1,1,1,1,1],
+          [1,1,0,1,1,1,1,0,1,1],
+          [1,1,1,1,1,1,1,1,1,1],
+          [0,1,1,1,1,1,1,1,1,0],
+          [0,0,1,1,0,0,1,1,0,0],
+          [0,0,0,1,0,0,1,0,0,0],
+        ];
+      },
+      'ancient-drake': (p) => {
+        return [
+          [0,0,0,0,1,1,0,0,0,0],
+          [0,0,0,1,0,0,1,0,0,0],
+          [0,0,1,0,0,0,0,1,0,0],
+          [0,1,1,1,1,1,1,1,1,0],
+          [1,1,1,1,1,1,1,1,1,1],
+          [0,0,1,1,1,1,1,1,0,0],
+          [0,0,1,1,1,1,1,1,0,0],
+          [0,0,0,1,1,1,1,0,0,0],
+          [0,0,0,1,0,0,1,0,0,0],
+        ];
+      },
+      'crystal-guardian': (p) => {
+        return [
+          [0,0,0,0,1,1,0,0,0,0],
+          [0,0,0,1,1,1,1,0,0,0],
+          [0,0,1,1,1,1,1,1,0,0],
+          [0,1,1,1,1,1,1,1,1,0],
+          [1,1,1,1,1,1,1,1,1,1],
+          [1,1,1,1,1,1,1,1,1,1],
+          [0,1,1,1,1,1,1,1,1,0],
+          [0,0,1,1,1,1,1,1,0,0],
+          [0,0,0,1,1,1,1,0,0,0],
+        ];
+      },
+    };
+
+    const fn = bossPatterns[name] || bossPatterns['dark-wizard'];
+    return fn(phase);
   }
 
   renderPlayer() {

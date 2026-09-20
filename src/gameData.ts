@@ -1,4 +1,5 @@
 import type { CharacterDef, DungeonDef, EnemyDef, PotionDef, BagLevelDef, SaveProfile, EnemyShape } from './types';
+import { DUNGEON_MONSTERS } from './dungeonMonsters';
 
 export const CHARACTERS: CharacterDef[] = [
   {
@@ -261,76 +262,76 @@ export const CHARACTERS: CharacterDef[] = [
 
 export const DUNGEONS: DungeonDef[] = [
   {
-    id: 'green_field',
-    name: { ru: 'Зелёное Поле', en: 'Green Field' },
-    description: { ru: 'Спокойные луга для начинающих', en: 'Peaceful meadows for beginners' },
+    id: 'whispering_grove',
+    name: { ru: 'Шепчущая Чаща', en: 'Whispering Grove' },
+    description: { ru: 'Древний лес, где слизни, орки и огры сталкиваются с эльфами и циклопами', en: 'Ancient grove where slimes, orcs and ogres clash with elves and cyclopes' },
     unlockCost: 0,
     minLevel: 1,
     bgGradient: ['#4a7c3a', '#2d5016'],
-    enemyTypes: ['slime', 'goblin', 'wolf'],
-    bossId: 'field_boss',
-    bossIds: ['field_boss', 'field_boss_2'],
-    icon: 'dungeon_field',
+    enemyTypes: ['slime', 'goblin', 'wolf', 'elf', 'cyclops'],
+    bossId: 'whispering_grove_boss_1',
+    bossIds: [],
+    icon: 'dungeon_grove',
   },
   {
-    id: 'dark_forest',
-    name: { ru: 'Тёмный Лес', en: 'Dark Forest' },
-    description: { ru: 'Мрачный лес, полный опасностей', en: 'Gloomy forest full of dangers' },
+    id: 'gnomish_ruins',
+    name: { ru: 'Древние Руины Гномов', en: 'Gnomish Ancient Ruins' },
+    description: { ru: 'Затерянные руины древних гномов с механизмами и кристаллами', en: 'Lost ruins of ancient gnomes with mechanisms and crystals' },
     unlockCost: 500,
     minLevel: 5,
-    bgGradient: ['#2d4a1f', '#1a2d10'],
-    enemyTypes: ['spider', 'wolf', 'goblin'],
-    bossId: 'forest_boss',
-    bossIds: ['forest_boss', 'forest_boss_2'],
-    icon: 'dungeon_forest',
-  },
-  {
-    id: 'caves',
-    name: { ru: 'Пещеры', en: 'Caves' },
-    description: { ru: 'Глубокие пещеры с троглодитами', en: 'Deep caves with troglodytes' },
-    unlockCost: 1500,
-    minLevel: 10,
-    bgGradient: ['#4a3a2a', '#2d2015'],
-    enemyTypes: ['bat', 'troll', 'spider'],
-    bossId: 'cave_boss',
-    bossIds: ['cave_boss', 'cave_boss_2'],
-    icon: 'dungeon_cave',
-  },
-  {
-    id: 'ancient_ruins',
-    name: { ru: 'Древние Руины', en: 'Ancient Ruins' },
-    description: { ru: 'Затерянные руины древней цивилизации', en: 'Lost ruins of an ancient civilization' },
-    unlockCost: 3000,
-    minLevel: 20,
     bgGradient: ['#5a4a6a', '#2d203a'],
-    enemyTypes: ['skeleton', 'golem', 'wraith'],
-    bossId: 'ruins_boss',
-    bossIds: ['ruins_boss', 'ruins_boss_2'],
+    enemyTypes: ['rat', 'gnome_zombie', 'spider', 'skeleton', 'crystal'],
+    bossId: 'gnomish_ruins_boss_1',
+    bossIds: [],
     icon: 'dungeon_ruins',
   },
   {
-    id: 'volcano',
-    name: { ru: 'Вулкан', en: 'Volcano' },
-    description: { ru: 'Раскалённые туннели вулкана', en: 'Scorching volcanic tunnels' },
-    unlockCost: 6000,
-    minLevel: 35,
-    bgGradient: ['#7a2a1a', '#3d1505'],
-    enemyTypes: ['imp', 'golem', 'salamander'],
-    bossId: 'volcano_boss',
-    bossIds: ['volcano_boss', 'volcano_boss_2'],
-    icon: 'dungeon_volcano',
+    id: 'necropolis',
+    name: { ru: 'Некрополь Зла', en: 'Necropolis of Evil' },
+    description: { ru: 'Мрачный город мёртвых, где воскрешаются тьмыю', en: 'Grim city of the dead, revived by darkness' },
+    unlockCost: 1500,
+    minLevel: 10,
+    bgGradient: ['#1a0a2a', '#050010'],
+    enemyTypes: ['skeleton', 'zombie', 'rat', 'phantom', 'ghost'],
+    bossId: 'necropolis_boss_1',
+    bossIds: [],
+    icon: 'dungeon_necropolis',
   },
   {
-    id: 'abyss',
-    name: { ru: 'Бездна', en: 'The Abyss' },
-    description: { ru: 'Сердце тьмы, финальное испытание', en: 'Heart of darkness, the final challenge' },
+    id: 'idol_jungle',
+    name: { ru: 'Джунгли Идол-КараВ', en: 'Idol-Car Jungle' },
+    description: { ru: 'Дикие джунгли с кобольдами, змеями и древними идолами', en: 'Wild jungle with kobolds, snakes and ancient idols' },
+    unlockCost: 3000,
+    minLevel: 20,
+    bgGradient: ['#2d7a1a', '#1a4a10'],
+    enemyTypes: ['flower', 'leopard', 'kobold', 'crocodile', 'monkey'],
+    bossId: 'idol_jungle_boss_1',
+    bossIds: [],
+    icon: 'dungeon_jungle',
+  },
+  {
+    id: 'sunken_fleet',
+    name: { ru: 'Затонувший Флот', en: 'Sunken Fleet' },
+    description: { ru: 'Потонувшие корабли с пиратами, сиренами и глубинными чудовищами', en: 'Sunken ships with pirates, sirens and deep-sea monsters' },
+    unlockCost: 6000,
+    minLevel: 35,
+    bgGradient: ['#1a4a7a', '#052040'],
+    enemyTypes: ['sailor', 'seagull', 'siren', 'tentacle', 'shark'],
+    bossId: 'sunken_fleet_boss_1',
+    bossIds: [],
+    icon: 'dungeon_fleet',
+  },
+  {
+    id: 'sky_citadel',
+    name: { ru: 'Небесная Цитадель', en: 'Sky Citadel' },
+    description: { ru: 'Вожушающаяся цитадель в небесах с ангелами, демонами и драконами', en: 'Floating citadel among the clouds with angels, demons and dragons' },
     unlockCost: 12000,
     minLevel: 50,
-    bgGradient: ['#1a0a2a', '#050010'],
-    enemyTypes: ['wraith', 'demon', 'salamander'],
-    bossId: 'abyss_boss',
-    bossIds: ['abyss_boss', 'abyss_boss_2'],
-    icon: 'dungeon_abyss',
+    bgGradient: ['#3a2a6a', '#100520'],
+    enemyTypes: ['gryphon', 'fallen_angel', 'demon', 'wyvern', 'dragon'],
+    bossId: 'sky_citadel_boss_1',
+    bossIds: [],
+    icon: 'dungeon_sky',
   },
 ];
 
@@ -585,8 +586,8 @@ export function createDefaultProfile(): SaveProfile {
     bag: [],
     trophies: [],
     dungeonProgress: {},
-    unlockedDungeons: ['green_field'],
-    equippedDungeons: ['green_field'],
+    unlockedDungeons: ['whispering_grove'],
+    equippedDungeons: ['whispering_grove'],
     totalWavesCleared: 0,
     settings: {
       brightness: 100,
@@ -642,12 +643,12 @@ interface DungeonBaseShapes {
 }
 
 const DUNGEON_SHAPES: Record<string, DungeonBaseShapes> = {
-  green_field: { melee: 'blob', ranged: 'beetle', colors: ['#5fbf3f', '#8bbf3f'] },
-  dark_forest: { melee: 'spider', ranged: 'shadow', colors: ['#3a2a1a', '#6a4a8a'] },
-  caves: { melee: 'bat', ranged: 'crystal', colors: ['#4a2a4a', '#5a8a7a'] },
-  ancient_ruins: { melee: 'gargoyle', ranged: 'skeleton', colors: ['#7a6a8a', '#c0c0a0'] },
-  volcano: { melee: 'golem', ranged: 'imp', colors: ['#df5f1f', '#bf3f3f'] },
-  abyss: { melee: 'eye', ranged: 'spirit', colors: ['#5a0a5a', '#3a0a5a'] },
+  whispering_grove: { melee: 'blob', ranged: 'beetle', colors: ['#5fbf3f', '#8bbf3f'] },
+  gnomish_ruins: { melee: 'humanoid', ranged: 'crystal', colors: ['#8a7a6a', '#5a8a7a'] },
+  necropolis: { melee: 'skeleton', ranged: 'shadow', colors: ['#c0c0a0', '#6a4a8a'] },
+  idol_jungle: { melee: 'wolf', ranged: 'blob', colors: ['#3f8a2f', '#8abf3f'] },
+  sunken_fleet: { melee: 'humanoid', ranged: 'eye', colors: ['#3a6a9a', '#2a8a9a'] },
+  sky_citadel: { melee: 'gargoyle', ranged: 'dragon', colors: ['#8a8abf', '#bf8a3f'] },
 };
 
 const TIER_PREFIXES_RU = ['Молодой', 'Закалённый', 'Древний', 'Лорд'];
@@ -741,6 +742,58 @@ export function generateAllTierEnemies(dungeonId: string): EnemyDef[] {
   return result;
 }
 
+// === NAMED DUNGEON MONSTERS ===
+// Generates the exact named monsters for each dungeon from DUNGEON_MONSTERS,
+// grouped into blocks of 4 waves (1-4, 6-9, 11-14, ... 96-99).
+export function generateNamedDungeonEnemies(dungeonId: string): EnemyDef[] {
+  const list = DUNGEON_MONSTERS[dungeonId];
+  if (!list || list.length === 0) return [];
+  const shapes = DUNGEON_SHAPES[dungeonId] || DUNGEON_SHAPES.whispering_grove;
+  const dg = DUNGEONS.find(d => d.id === dungeonId);
+  const baseColor = dg?.bgGradient[0] || '#5fbf3f';
+
+  // 25 blocks of 4 waves: 1-4, 6-9, 11-14, ... Each block holds 2-4 monsters.
+  const blocks = 25;
+  const perBlock = Math.ceil(list.length / blocks);
+  const result: EnemyDef[] = [];
+
+  for (let block = 0; block < blocks; block++) {
+    const blockStart = block * perBlock;
+    const blockEnd = Math.min(list.length, blockStart + perBlock);
+    // Wave where this block first appears (block 0 → wave 1, block 1 → wave 6, block 2 → wave 11, ...)
+    const firstWave = block === 0 ? 1 : block * 5 + 1;
+
+    for (let i = blockStart; i < blockEnd; i++) {
+      const m = list[i];
+      const statMult = 1 + block * 0.45;
+      const isRanged = m.attackType === 'ranged';
+      const isCharger = m.attackType === 'charger';
+
+      result.push({
+        id: `${dungeonId}_m_${i}`,
+        name: { ru: m.ru, en: m.en },
+        health: Math.floor((isCharger ? 45 : isRanged ? 30 : 38) * statMult),
+        damage: Math.floor((isRanged ? 8 : isCharger ? 11 : 9) * statMult),
+        speed: isCharger ? 2.0 + block * 0.02 : isRanged ? 1.2 + block * 0.01 : 1.3 + block * 0.02,
+        expReward: 5 + block * 4,
+        goldReward: 3 + block * 3,
+        color: isRanged ? shapes.colors[1] : baseColor,
+        radius: (isCharger ? 14 : isRanged ? 12 : 13) + block * 0.2,
+        isBoss: false,
+        attackType: m.attackType,
+        sellPrice: 0,
+        icon: `enemy_${dungeonId}_${i}`,
+        minWave: firstWave,
+        shape: m.shape,
+        dungeonId,
+        // Tier for hue-rotate/emoji variation: changes every 2 blocks (every 2 bosses)
+        hueShift: Math.floor(block / 2) * 22,
+      });
+    }
+  }
+  return result;
+}
+
 // === PROCEDURAL BOSS GENERATION ===
 // 20 bosses per dungeon (waves 5, 10, 15... 100). Wave 100 = final boss.
 const BOSS_ABILITY_POOL: { ru: string; en: string }[] = [
@@ -767,59 +820,113 @@ const BOSS_ABILITY_POOL: { ru: string; en: string }[] = [
 ];
 
 const BOSS_NAMES_RU: string[][] = [
-  ['Хозяин Полей', 'Гоблин-Вождь', 'Лесной Страж', 'Корень-Древень', 'Лесной Дракончик', 'Полевой Титан', 'Зелёный Рыцарь', 'Дикий Вепрь', 'Лесная Горгулья', 'Король Слизней',
-   'Лесной Маг', 'Шипастый Страж', 'Гнилой Великан', 'Травяной Голем', 'Лесная Ведьма', 'Корневой Властелин', 'Древний Лесной Дух', 'Лесной Пожиратель', 'Страж Поляны', 'Лесной Дракон'],
-  ['Лесной Страж', 'Паучья Королева', 'Теневой Крадущийся', 'Лесной Призрак', 'Костяной Лучник', 'Тёмный Охотник', 'Лесной Убийца', 'Паучий Лорд', 'Теневой Маг', 'Гнилой Дух',
-   'Лесной Жнец', 'Тёмный Мститель', 'Паучий Бог', 'Теневой Демон', 'Лесной Кошмар', 'Костяной Лорд', 'Тёмный Шаман', 'Лесной Разрушитель', 'Паучья Богиня', 'Летающий Призрак'],
-  ['Король Пещер', 'Каменный Колосс', 'Кристальный Страж', 'Грязевой Титан', 'Пещерный Дракончик', 'Кристальный Маг', 'Каменный Голем', 'Пещерный Жнец', 'Кристальный Лучник', 'Глубинный Дух',
-   'Пещерный Лорд', 'Каменный Страж', 'Кристальный Великан', 'Грязевой Пожиратель', 'Пещерный Титан', 'Кристальный Голем', 'Каменный Дракон', 'Глубинный Пожиратель', 'Кристальный Страж', 'Кристальный Дракон'],
-  ['Древний Страж', 'Дух Хранителя', 'Каменная Горгулья', 'Костяной Лич', 'Руинный Рыцарь', 'Древний Маг', 'Каменный Страж', 'Руинный Голем', 'Костяной Дракон', 'Древний Дух',
-   'Руинный Страж', 'Древний Колосс', 'Каменный Лорд', 'Костяной Титан', 'Руинный Маг', 'Древний Голем', 'Каменный Пожиратель', 'Руинный Дух', 'Древний Лич', 'Древний Лич'],
-  ['Лавовый Титан', 'Огненный Демон', 'Магмовый Голем', 'Огненный Страж', 'Вулканический Дракончик', 'Лавовый Маг', 'Магмовый Страж', 'Огненный Рыцарь', 'Лавовый Голем', 'Вулканический Дух',
-   'Магмовый Титан', 'Огненный Колосс', 'Лавовый Страж', 'Вулканический Лучник', 'Огненный Голем', 'Магмовый Демон', 'Лавовый Дракон', 'Вулканический Титан', 'Огненный Пожиратель', 'Огненный Испепеляющий Дракон'],
-  ['Владыка Бездны', 'Теневой Владыка', 'Дух Пустоты', 'Око Бездны', 'Теневой Демон', 'Пустотный Жнец', 'Дух Тьмы', 'Око Пустоты', 'Теневой Колосс', 'Пустотный Страж',
-   'Дух Бездны', 'Око Тьмы', 'Теневой Голем', 'Пустотный Маг', 'Теневой Дракон', 'Дух Пустоты', 'Око Забвения', 'Теневой Пожиратель', 'Пустотный Лорд', 'Финальная Сущность Бездны'],
+  // 1. Шепчущая Чаща (Слизни, Орки, Огры, Эльфы, Циклопы)
+  ['Желейный Король', 'Магма-Желе', 'Гарг Клыкастый', 'Вождь Громмак', 'Дробитель Черепов',
+   'Колдун Чо-Галл', 'Следопыт Иллидан', 'Чародейка Малфурия', 'Одноглазый Брут', 'Громовержец Полифем',
+   'Исполинский Кислотник', 'Палач Кровавого Клыка', 'Железнобрюх', 'Лорд Кель', 'Бронированный Титан',
+   'Радужный Оливер', 'Гулдан Разрушитель', 'Древний Людоед Корог', 'Полубог Кенарий', 'Лесной Бог Сильванус'],
+  // 2. Древние Руины Гномов
+  ['Дробитель', 'Шахтер Грюм', 'Плавщик', 'Железный Горн', 'Осколок',
+   'Камнегрыз', 'Барон Брок', 'Стальной Клык', 'Суховей', 'Архитектор Руин',
+   'Рудный Ужас', 'Искровед', 'Базальт', 'Мрак', 'Главный Мастер',
+   'Изумрудный Огонь', 'Стальной Титан', 'Генерал Бэлин', 'Вулканиум', 'Каменный Король Тор'],
+  // 3. Некрополь Зла
+  ['Костеглод', 'Капитан Морг', 'Охотник Ночи', 'Черный Дворецкий', 'Жрец Малхор',
+   'Объект №9', 'Граф фон Смерть', 'Кровавая Графиня', 'Чумной Пророк', 'Газовый Ужас',
+   'Палач Душ', 'Королева Банши', 'Лорд Гробниц', 'Костяной Царь', 'Жнец Косы',
+   'Владыка Бездны', 'Гниющий Дракон', 'Генерал Некрос', 'Синдра', 'Архилич Малакар'],
+  // 4. Джунгли Идол-КараВ
+  ['Зеленый Людоед', 'Вожак Кобольдов', 'Охотник Челюсть', 'Жабий Король', 'Королева Ос',
+   'Анаконда-Убийца', 'Пророк Клыков', 'Страж Тотема', 'Древесный дух Лозобрюх', 'Болотная Ведьма',
+   'Громила Балу', 'Вождь Угу', 'Изумрудный Крылан', 'Зеленый Клык', 'Король Ящеров',
+   'Чешуйчатый Титан', 'Хранитель Оазиса', 'Магистр Змей', 'Пернатый Ужас', 'Змей Кукулькан'],
+  // 5. Затонувший Флот
+  ['Одноглазый Джо', 'Призрак Барбоссы', 'Нереида', 'Морская Ведьма Урсула', 'Щупальцебес',
+   'Левиафан Глубин', 'Вождь Мурлоков Мура', 'Посейдонис', 'Белая Смерть', 'Дейви Джонс',
+   'Королева Воронок Сильфия', 'Младший Кракен', 'Принц Наг Назарий', 'Капитан Черная Борода', 'Медуза Горгона',
+   'Древний Тритон', 'Императрица Азшара', 'Призрак Фрегата', 'Царь Нептун', 'Великий Кракен Пожиратель'],
+  // 6. Небесная Цитадель
+  ['Вожак Стаи Скай', 'Железный Коготь', 'Кастиэль', 'Архангел Гавриил', 'Адская Гончая Бальзак',
+   'Повелитель Ужаса Баал', 'Лазурный Клык', 'Сапфирон Штормовой', 'Магма-Титан Пирос', 'Серафим Уриил',
+   'Владыка Смерчей Стрибог', 'Иллидан Небесный', 'Зеленый Властелин Изэра', 'Архангел Михаил', 'Владыка Инферно Асмодей',
+   'Нефариан Тёмный', 'Хранитель Света Люцифер', 'Владыка Тьмы Диабло', 'Королева Драконов Алекстраза', 'Бог Небес Зевс Олимпиец'],
 ];
 
 const BOSS_NAMES_EN: string[][] = [
-  ['Field Lord', 'Goblin Chieftain', 'Forest Warden', 'Root Treant', 'Forest Drake', 'Field Titan', 'Green Knight', 'Wild Boar', 'Forest Gargoyle', 'Slime King',
-   'Forest Mage', 'Thorn Guardian', 'Rotting Giant', 'Grass Golem', 'Forest Witch', 'Root Overlord', 'Ancient Forest Spirit', 'Forest Devourer', 'Glade Sentinel', 'Forest Dragon'],
-  ['Forest Warden', 'Spider Queen', 'Shadow Stalker', 'Forest Phantom', 'Bone Archer', 'Dark Hunter', 'Forest Slayer', 'Spider Lord', 'Shadow Mage', 'Rotting Spirit',
-   'Forest Reaper', 'Dark Avenger', 'Spider God', 'Shadow Demon', 'Forest Nightmare', 'Bone Lord', 'Dark Shaman', 'Forest Destroyer', 'Spider Goddess', 'Flying Phantom'],
-  ['Cave King', 'Stone Colossus', 'Crystal Guardian', 'Mud Titan', 'Cave Drake', 'Crystal Mage', 'Stone Golem', 'Cave Reaper', 'Crystal Archer', 'Depths Spirit',
-   'Cave Lord', 'Stone Guardian', 'Crystal Giant', 'Mud Devourer', 'Cave Titan', 'Crystal Golem', 'Stone Dragon', 'Depths Devourer', 'Crystal Sentinel', 'Crystal Dragon'],
-  ['Ancient Guardian', 'Guardian Spirit', 'Stone Gargoyle', 'Bone Lich', 'Ruin Knight', 'Ancient Mage', 'Stone Guardian', 'Ruin Golem', 'Bone Dragon', 'Ancient Spirit',
-   'Ruin Sentinel', 'Ancient Colossus', 'Stone Lord', 'Bone Titan', 'Ruin Mage', 'Ancient Golem', 'Stone Devourer', 'Ruin Spirit', 'Ancient Lich', 'Ancient Lich'],
-  ['Lava Titan', 'Fire Demon', 'Magma Golem', 'Fire Guardian', 'Volcanic Drake', 'Lava Mage', 'Magma Guardian', 'Fire Knight', 'Lava Golem', 'Volcanic Spirit',
-   'Magma Titan', 'Fire Colossus', 'Lava Sentinel', 'Volcanic Archer', 'Fire Golem', 'Magma Demon', 'Lava Dragon', 'Volcanic Titan', 'Fire Devourer', 'Fire Incinerating Dragon'],
-  ['Abyss Lord', 'Shadow Sovereign', 'Void Spirit', 'Abyssal Eye', 'Shadow Demon', 'Void Reaper', 'Dark Spirit', 'Void Eye', 'Shadow Colossus', 'Void Guardian',
-   'Abyss Spirit', 'Eye of Darkness', 'Shadow Golem', 'Void Mage', 'Shadow Dragon', 'Void Spirit', 'Eye of Oblivion', 'Shadow Devourer', 'Void Lord', 'Final Abyss Entity'],
+  // 1. Whispering Grove
+  ['Jelly King', 'Magma Jelly', 'Fang Garg', 'Warchief Grommak', 'Skull Crusher',
+   'Warlock Cho-Gall', 'Ranger Illidan', 'Sorceress Malfuria', 'One-Eyed Brute', 'Thunderer Polyphemus',
+   'Colossal Acidic One', 'Blood Fang Executioner', 'Iron Belly', 'Lord Kel', 'Armored Titan',
+   'Rainbow Oliver', 'Guldan the Destroyer', 'Ancient Maneater Korog', 'Demigod Cenarius', 'Forest God Silvanus'],
+  // 2. Gnomish Ancient Ruins
+  ['Crusher', 'Miner Grum', 'Smelter', 'Iron Forge', 'Shard',
+   'Stonegnaw', 'Baron Brock', 'Steel Fang', 'Dry Wind', 'Architect of Ruins',
+   'Ore Horror', 'Sparkseer', 'Basalt', 'Gloom', 'Grand Master',
+   'Emerald Fire', 'Steel Titan', 'General Belin', 'Volcanium', 'Stone King Thor'],
+  // 3. Necropolis of Evil
+  ['Bonegnaw', 'Captain Morg', 'Night Hunter', 'Black Butler', 'Priest Malhor',
+   'Subject #9', 'Count von Death', 'Blood Countess', 'Plague Prophet', 'Gas Horror',
+   'Soul Executioner', 'Banshee Queen', 'Lord of Tombs', 'Bone Tsar', 'Reaper of Scythes',
+   'Abyss Overlord', 'Rotting Dragon', 'General Necros', 'Sindragosa', 'Archlich Malakar'],
+  // 4. Idol-Car Jungle
+  ['Green Maneater', 'Kobold Alpha', 'Jaw Hunter', 'Toad King', 'Wasp Queen',
+   'Anaconda Assassin', 'Fang Prophet', 'Totem Guardian', 'Vinebelly Tree Spirit', 'Swamp Witch',
+   'Brute Balu', 'Chief Ugu', 'Emerald Wyvern', 'Green Fang', 'Lizard King',
+   'Scaled Titan', 'Oasis Keeper', 'Serpent Magister', 'Feathered Horror', 'Serpent Kukulkan'],
+  // 5. Sunken Fleet
+  ['One-Eyed Joe', 'Ghost of Barbossa', 'Nereid', 'Sea Witch Ursula', 'Tentacle Fiend',
+   'Leviathan of the Deep', 'Murloc Chief Mura', 'Poseidonis', 'White Death', 'Davy Jones',
+   'Maelstrom Queen Sylphia', 'Young Kraken', 'Naga Prince Nazarius', 'Captain Blackbeard', 'Medusa Gorgon',
+   'Ancient Triton', 'Empress Azshara', 'Ghost Frigate', 'Tsar Neptune', 'Great Kraken Devourer'],
+  // 6. Sky Citadel
+  ['Sky Pack Alpha', 'Iron Claw', 'Castiel', 'Archangel Gabriel', 'Hellhound Balzak',
+   'Dread Lord Baal', 'Azure Fang', 'Sapphiron the Stormy', 'Magma Titan Pyros', 'Seraph Uriel',
+   'Storm Lord Stribog', 'Illidan the Celestial', 'Green Lord Ysera', 'Archangel Michael', 'Inferno Lord Asmodeus',
+   'Nefarian the Dark', 'Light Keeper Lucifer', 'Dark Lord Diablo', 'Dragon Queen Alexstrasza', 'Sky God Zeus Olympian'],
 ];
 
-const DUNGEON_ORDER = ['green_field', 'dark_forest', 'caves', 'ancient_ruins', 'volcano', 'abyss'];
+const DUNGEON_ORDER = ['whispering_grove', 'gnomish_ruins', 'necropolis', 'idol_jungle', 'sunken_fleet', 'sky_citadel'];
 
 const FINAL_BOSS_SHAPES: Record<string, EnemyShape> = {
-  green_field: 'dragon',
-  dark_forest: 'shadow',
-  caves: 'dragon',
-  ancient_ruins: 'humanoid',
-  volcano: 'dragon',
-  abyss: 'spirit',
+  whispering_grove: 'humanoid',
+  gnomish_ruins: 'golem',
+  necropolis: 'dragon',
+  idol_jungle: 'dragon',
+  sunken_fleet: 'dragon',
+  sky_citadel: 'dragon',
 };
 
 const BOSS_SHAPES_BY_DUNGEON: Record<string, EnemyShape[]> = {
-  green_field: ['blob', 'humanoid', 'humanoid', 'humanoid', 'dragon', 'golem', 'humanoid', 'beetle', 'gargoyle', 'blob',
-    'humanoid', 'beetle', 'golem', 'golem', 'humanoid', 'humanoid', 'spirit', 'golem', 'humanoid', 'dragon'],
-  dark_forest: ['humanoid', 'spider', 'shadow', 'spirit', 'skeleton', 'humanoid', 'humanoid', 'spider', 'shadow', 'spirit',
-    'humanoid', 'humanoid', 'spider', 'shadow', 'spirit', 'skeleton', 'humanoid', 'golem', 'spider', 'shadow'],
-  caves: ['humanoid', 'golem', 'crystal', 'golem', 'dragon', 'humanoid', 'golem', 'humanoid', 'skeleton', 'spirit',
-    'humanoid', 'golem', 'crystal', 'golem', 'golem', 'crystal', 'dragon', 'spirit', 'crystal', 'dragon'],
-  ancient_ruins: ['golem', 'spirit', 'gargoyle', 'skeleton', 'humanoid', 'humanoid', 'golem', 'golem', 'dragon', 'spirit',
-    'humanoid', 'golem', 'golem', 'skeleton', 'humanoid', 'golem', 'golem', 'spirit', 'humanoid', 'humanoid'],
-  volcano: ['golem', 'imp', 'golem', 'humanoid', 'dragon', 'humanoid', 'golem', 'humanoid', 'golem', 'spirit',
-    'golem', 'imp', 'humanoid', 'humanoid', 'golem', 'imp', 'dragon', 'golem', 'imp', 'dragon'],
-  abyss: ['eye', 'spirit', 'spirit', 'eye', 'shadow', 'humanoid', 'spirit', 'eye', 'golem', 'humanoid',
-    'spirit', 'eye', 'golem', 'humanoid', 'dragon', 'spirit', 'eye', 'shadow', 'humanoid', 'spirit'],
+  // 1. Шепчущая Чаща: слизни → орки → огры → эльфы → циклопы
+  whispering_grove: ['blob', 'blob', 'humanoid', 'humanoid', 'golem',
+    'humanoid', 'humanoid', 'humanoid', 'golem', 'humanoid',
+    'blob', 'humanoid', 'golem', 'humanoid', 'golem',
+    'blob', 'humanoid', 'golem', 'humanoid', 'humanoid'],
+  // 2. Древние Руины Гномов: крысы, гномы, механизмы, элементали, маги
+  gnomish_ruins: ['wolf', 'spirit', 'slime', 'golem', 'crystal',
+    'skeleton', 'humanoid', 'golem', 'spirit', 'humanoid',
+    'beetle', 'humanoid', 'golem', 'shadow', 'imp',
+    'dragon', 'golem', 'spirit', 'imp', 'golem'],
+  // 3. Некрополь Зла: гули, скелеты, призраки, вампиры, личи, драконы
+  necropolis: ['humanoid', 'skeleton', 'bat', 'spirit', 'humanoid',
+    'humanoid', 'humanoid', 'humanoid', 'humanoid', 'spirit',
+    'imp', 'spirit', 'humanoid', 'golem', 'gargoyle',
+    'shadow', 'dragon', 'humanoid', 'dragon', 'spirit'],
+  // 4. Джунгли Идол-КараВ: цветы, ящеры, змеи, обезьяны, динозавры
+  idol_jungle: ['blob', 'humanoid', 'wolf', 'blob', 'beetle',
+    'dragon', 'humanoid', 'golem', 'golem', 'spirit',
+    'humanoid', 'spirit', 'dragon', 'spider', 'humanoid',
+    'dragon', 'golem', 'humanoid', 'dragon', 'dragon'],
+  // 5. Затонувший Флот: пираты, утопленники, сирены, кракены, наги
+  sunken_fleet: ['humanoid', 'spirit', 'humanoid', 'spirit', 'eye',
+    'eye', 'humanoid', 'humanoid', 'wolf', 'spirit',
+    'spirit', 'eye', 'humanoid', 'humanoid', 'humanoid',
+    'humanoid', 'humanoid', 'spirit', 'humanoid', 'eye'],
+  // 6. Небесная Цитадель: грифоны, ангелы, демоны, виверны, драконы
+  sky_citadel: ['gargoyle', 'gargoyle', 'humanoid', 'humanoid', 'wolf',
+    'humanoid', 'dragon', 'dragon', 'golem', 'humanoid',
+    'humanoid', 'humanoid', 'dragon', 'humanoid', 'imp',
+    'dragon', 'humanoid', 'dragon', 'dragon', 'humanoid'],
 };
 
 export function generateDungeonBosses(dungeonId: string): EnemyDef[] {
@@ -839,26 +946,29 @@ export function generateDungeonBosses(dungeonId: string): EnemyDef[] {
     const isFinal = i === 19;
     const statMult = 1 + i * 0.6;
     const shape: EnemyShape = isFinal ? (FINAL_BOSS_SHAPES[dungeonId] || 'dragon') : shapes[i % shapes.length];
+    // Special: Whispering Grove wave 10 boss = "Гоблин-Разрушитель" (index 1, melee with charge ability)
+    const isGreenFieldWave10 = dungeonId === 'whispering_grove' && i === 1;
     bosses.push({
       id: `${dungeonId}_boss_${i + 1}`,
-      name: { ru: namesRuArr[i] || `Босс ${i + 1}`, en: namesEnArr[i] || `Boss ${i + 1}` },
+      name: { ru: isGreenFieldWave10 ? 'Гоблин-Разрушитель' : (namesRuArr[i] || `Босс ${i + 1}`), en: isGreenFieldWave10 ? 'Goblin Wrecker' : (namesEnArr[i] || `Boss ${i + 1}`) },
       health: Math.floor((300 + i * 200) * statMult),
       damage: Math.floor((15 + i * 5) * statMult),
-      speed: 0.9 + i * 0.05,
+      speed: isGreenFieldWave10 ? 2.5 : 0.9 + i * 0.05,
       expReward: 50 + i * 50,
       goldReward: 40 + i * 40,
       color: baseColor,
       radius: 28 + i * 1.5,
       isBoss: true,
-      attackType: i % 3 === 0 ? 'melee' : i % 3 === 1 ? 'ranged' : 'charger',
-      ability: BOSS_ABILITY_POOL[i % BOSS_ABILITY_POOL.length],
+      attackType: isGreenFieldWave10 ? 'melee' : (i % 3 === 0 ? 'melee' : i % 3 === 1 ? 'ranged' : 'charger'),
+      ability: isGreenFieldWave10 ? { ru: 'Каждые 6 сек бежит тараном в игрока. Врезаясь в край экрана, трясет экран и оглушается на 1.5 сек', en: 'Every 6s charges at player. Hitting screen edge shakes screen and stuns for 1.5s' } : BOSS_ABILITY_POOL[i % BOSS_ABILITY_POOL.length],
       sellPrice: 100 + i * 150,
       icon: `boss_${dungeonId}_${i + 1}`,
       minWave: wave,
-      shape,
+      shape: isGreenFieldWave10 ? 'humanoid' : shape,
       dungeonId,
       hueShift: i * 18,
       isFinalBoss: isFinal,
+      isGreenFieldWave10,
     });
   }
   return bosses;
@@ -868,7 +978,7 @@ export function generateDungeonBosses(dungeonId: string): EnemyDef[] {
 export function buildProceduralEnemies(): Record<string, EnemyDef> {
   const registry: Record<string, EnemyDef> = { ...ENEMIES };
   for (const dgId of DUNGEON_ORDER) {
-    for (const e of generateAllTierEnemies(dgId)) {
+    for (const e of generateNamedDungeonEnemies(dgId)) {
       registry[e.id] = e;
     }
     for (const b of generateDungeonBosses(dgId)) {

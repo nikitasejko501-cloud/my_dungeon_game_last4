@@ -69,6 +69,7 @@ export interface EnemyDef {
   dungeonId?: string;
   hueShift?: number;
   isFinalBoss?: boolean;
+  isGreenFieldWave10?: boolean;
 }
 
 export interface PotionDef {

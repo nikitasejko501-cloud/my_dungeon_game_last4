@@ -167,6 +167,94 @@ export function GameIcon({ name, size = 48, className = '' }: IconProps) {
         <circle cx="28" cy="28" r="2" fill="#8a3aba" opacity="0.5" />
       </svg>
     ),
+    // ===== NEW DUNGEON ICONS =====
+    'dungeon_grove': (
+      <svg viewBox="0 0 64 64" width={size} height={size} className={className}>
+        <defs>
+          <radialGradient id="grove-bg" cx="0.5" cy="0.5" r="0.7">
+            <stop offset="0%" stopColor="#4a7c3a" />
+            <stop offset="100%" stopColor="#1f3a10" />
+          </radialGradient>
+        </defs>
+        <rect x="6" y="6" width="52" height="52" rx="5" fill="url(#grove-bg)" stroke="#2a4a1a" strokeWidth="2" />
+        <polygon points="18,50 22,30 26,50" fill="#3f7a2f" />
+        <polygon points="30,50 34,22 38,50" fill="#4f8a3f" />
+        <polygon points="42,50 46,32 50,50" fill="#3f7a2f" />
+        <ellipse cx="22" cy="52" rx="4" ry="3" fill="#6fcf5f" opacity="0.9" />
+        <circle cx="22" cy="51" r="1" fill="#1a3a0a" />
+        <circle cx="30" cy="16" r="2" fill="#bfef8f" opacity="0.6" />
+      </svg>
+    ),
+    'dungeon_necropolis': (
+      <svg viewBox="0 0 64 64" width={size} height={size} className={className}>
+        <defs>
+          <radialGradient id="necro-bg" cx="0.5" cy="0.5" r="0.7">
+            <stop offset="0%" stopColor="#3a1a4a" />
+            <stop offset="100%" stopColor="#0a0018" />
+          </radialGradient>
+        </defs>
+        <rect x="6" y="6" width="52" height="52" rx="5" fill="url(#necro-bg)" stroke="#2a0a3a" strokeWidth="2" />
+        <rect x="18" y="24" width="28" height="24" rx="2" fill="#4a3a5a" stroke="#2a1a3a" strokeWidth="1.5" />
+        <path d="M18 24 Q32 12 46 24" fill="#5a4a6a" stroke="#2a1a3a" strokeWidth="1.5" />
+        <rect x="24" y="30" width="6" height="6" rx="1" fill="#0a0018" />
+        <rect x="34" y="30" width="6" height="6" rx="1" fill="#0a0018" />
+        <circle cx="27" cy="33" r="1.6" fill="#8f2fbf" />
+        <circle cx="37" cy="33" r="1.6" fill="#8f2fbf" />
+        <rect x="29" y="40" width="6" height="8" fill="#1a0a2a" />
+      </svg>
+    ),
+    'dungeon_jungle': (
+      <svg viewBox="0 0 64 64" width={size} height={size} className={className}>
+        <defs>
+          <radialGradient id="jungle-bg" cx="0.5" cy="0.5" r="0.7">
+            <stop offset="0%" stopColor="#2d8a1a" />
+            <stop offset="100%" stopColor="#0f3a08" />
+          </radialGradient>
+        </defs>
+        <rect x="6" y="6" width="52" height="52" rx="5" fill="url(#jungle-bg)" stroke="#1a5a10" strokeWidth="2" />
+        <path d="M14 52 Q20 30 28 40 Q34 24 42 38 Q48 28 52 52 Z" fill="#1f6a10" opacity="0.9" />
+        <rect x="26" y="18" width="12" height="24" rx="2" fill="#8a7a5a" stroke="#5a4a2a" strokeWidth="1.5" />
+        <circle cx="32" cy="24" r="3" fill="#c8a040" />
+        <circle cx="32" cy="32" r="3" fill="#3f8a3f" />
+        <path d="M28 38 L36 38" stroke="#5a4a2a" strokeWidth="1.5" />
+        <path d="M46 20 L52 14" stroke="#4faf3f" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    ),
+    'dungeon_fleet': (
+      <svg viewBox="0 0 64 64" width={size} height={size} className={className}>
+        <defs>
+          <linearGradient id="fleet-bg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2a6a9a" />
+            <stop offset="100%" stopColor="#052040" />
+          </linearGradient>
+        </defs>
+        <rect x="6" y="6" width="52" height="52" rx="5" fill="url(#fleet-bg)" stroke="#0a3a6a" strokeWidth="2" />
+        <path d="M10 44 Q18 40 26 44 Q34 48 42 44 Q50 40 56 44" fill="none" stroke="#4a9adf" strokeWidth="2" opacity="0.7" />
+        <path d="M22 46 L20 30 L42 30 L44 46 Z" fill="#6a4a2a" stroke="#3a2a1a" strokeWidth="1.5" />
+        <rect x="30" y="14" width="3" height="16" fill="#4a3a2a" />
+        <path d="M33 16 L44 22 L33 26 Z" fill="#c8c0b0" stroke="#8a8070" strokeWidth="1" />
+        <circle cx="26" cy="36" r="1.5" fill="#df5f3f" />
+        <circle cx="38" cy="36" r="1.5" fill="#df5f3f" />
+      </svg>
+    ),
+    'dungeon_sky': (
+      <svg viewBox="0 0 64 64" width={size} height={size} className={className}>
+        <defs>
+          <radialGradient id="sky-bg" cx="0.5" cy="0.4" r="0.8">
+            <stop offset="0%" stopColor="#6a5abf" />
+            <stop offset="100%" stopColor="#100520" />
+          </radialGradient>
+        </defs>
+        <rect x="6" y="6" width="52" height="52" rx="5" fill="url(#sky-bg)" stroke="#2a1a5a" strokeWidth="2" />
+        <ellipse cx="20" cy="22" rx="8" ry="4" fill="#8a9acf" opacity="0.35" />
+        <ellipse cx="44" cy="18" rx="9" ry="4" fill="#8a9acf" opacity="0.25" />
+        <rect x="18" y="34" width="28" height="18" rx="2" fill="#c8c0d8" stroke="#8a80a0" strokeWidth="1.5" />
+        <polygon points="18,34 32,22 46,34" fill="#bfb8d0" stroke="#8a80a0" strokeWidth="1.5" />
+        <rect x="24" y="40" width="6" height="12" fill="#3a2a5a" />
+        <rect x="34" y="40" width="6" height="12" fill="#3a2a5a" />
+        <circle cx="32" cy="30" r="2.5" fill="#ffe080" />
+      </svg>
+    ),
   };
 
   return <>{icons[name] || <div style={{ width: size, height: size, background: '#333', borderRadius: 4 }} />}</>;
