@@ -903,7 +903,7 @@ const BOSS_SHAPES_BY_DUNGEON: Record<string, EnemyShape[]> = {
     'blob', 'humanoid', 'golem', 'humanoid', 'golem',
     'blob', 'humanoid', 'golem', 'humanoid', 'humanoid'],
   // 2. Древние Руины Гномов: крысы, гномы, механизмы, элементали, маги
-  gnomish_ruins: ['wolf', 'spirit', 'slime', 'golem', 'crystal',
+  gnomish_ruins: ['wolf', 'spirit', 'blob', 'golem', 'crystal',
     'skeleton', 'humanoid', 'golem', 'spirit', 'humanoid',
     'beetle', 'humanoid', 'golem', 'shadow', 'imp',
     'dragon', 'golem', 'spirit', 'imp', 'golem'],

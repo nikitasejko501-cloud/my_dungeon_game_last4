@@ -2108,7 +2108,7 @@ export class CombatEngine {
     const cellSize = (r * 2) / spriteW;
 
     const bossName = e.def.name.en.toLowerCase();
-    const pattern = this.getBossPixelPattern(bossName, e.phase || 0);
+    const pattern = this.getBossPixelPattern(bossName, 0);
 
     ctx.fillStyle = hit ? '#fff' : color;
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
