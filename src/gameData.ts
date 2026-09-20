@@ -656,7 +656,7 @@ const TIER_PREFIXES_EN = ['Young', 'Hardened', 'Ancient', 'Lord'];
 
 // Generate procedural enemies for a dungeon at a given tier (every 2 waves)
 export function generateTierEnemies(dungeonId: string, tier: number): EnemyDef[] {
-  const shapes = DUNGEON_SHAPES[dungeonId] || DUNGEON_SHAPES.green_field;
+    const shapes = DUNGEON_SHAPES[dungeonId] || DUNGEON_SHAPES.whispering_grove;
   const prefixIdx = Math.min(tier, TIER_PREFIXES_RU.length - 1);
   const hueShift = tier * 18; // +18 degrees per tier
   const statMult = 1 + tier * 0.25;
@@ -936,7 +936,7 @@ export function generateDungeonBosses(dungeonId: string): EnemyDef[] {
   const namesEn = BOSS_NAMES_EN[dgIdx] || BOSS_NAMES_EN[0];
   const namesRuArr = Array.isArray(namesRu) ? namesRu : BOSS_NAMES_RU[0] || namesRu;
   const namesEnArr = Array.isArray(namesEn) ? namesEn : BOSS_NAMES_EN[0] || namesEn;
-  const shapes = BOSS_SHAPES_BY_DUNGEON[dungeonId] || BOSS_SHAPES_BY_DUNGEON['green_field'];
+     const shapes = BOSS_SHAPES_BY_DUNGEON[dungeonId] || BOSS_SHAPES_BY_DUNGEON['whispering_grove'] || BOSS_SHAPES_BY_DUNGEON[DUNGEON_ORDER[0]];
   const dg = DUNGEONS.find(d => d.id === dungeonId);
   const baseColor = dg?.bgGradient[0] || '#3faf2f';
   const bosses: EnemyDef[] = [];

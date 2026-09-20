@@ -1,6 +1,7 @@
 import type { Vec2, CharacterClass, EnemyDef, EnemyShape, SaveProfile, CapturedBoss, GameMode, CombatResult } from './types';
 import { CHARACTERS, ENEMIES, ALL_ENEMIES, DUNGEONS, MAX_WAVES, BOSS_WAVE_INTERVAL, STAMINA_REGEN_RATE, STAMINA_REGEN_SECOND_WIND, HEALTH_REGEN_RATE, POTION_HEALTH_AMOUNT, POTION_STAMINA_AMOUNT, REVIVAL_HP_PERCENT, EXP_PER_LEVEL, EXP_LEVEL_MULTIPLIER, POTION_COOLDOWN, WAVE_DIFFICULTY_MULTIPLIER, HARD_HEALTH_MULTIPLIER, HARD_DAMAGE_MULTIPLIER, HARD_WAVE_DIFFICULTY_MULTIPLIER, TALENT_BONUS_PER_LEVEL, SHIELD_HITS_MULTIPLIER, generateDungeonBosses } from './gameData';
 import { audio, SfxName } from './audio';
+import { getMonsterEmoji, buildBossPattern, shadeColor } from './monsterVisuals';
 
 interface Enemy {
   id: string;
@@ -25,6 +26,7 @@ interface Enemy {
   walkAnim: number;
   isMoving: boolean;
   invuln: number;
+  attackAnim: number;
 }
 
 interface Projectile {
@@ -282,10 +284,26 @@ export class CombatEngine {
     const dt = Math.min(0.05, (now - this.lastTime) / 1000);
     this.lastTime = now;
 
-    if (!this.paused && !this.gameOver) {
-      this.update(dt);
+    try {
+      if (!this.paused && !this.gameOver) {
+        this.update(dt);
+      }
+      this.render();
+    } catch (err) {
+      // Защита от «чёрного экрана»: ошибка не должна убивать игровой цикл.
+      console.error('[CombatEngine] loop error:', err);
+      try {
+        const ctx = this.ctx;
+        ctx.fillStyle = 'rgba(120,0,0,0.85)';
+        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '13px monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        const msg = err instanceof Error ? (err.stack || err.message) : String(err);
+        msg.split('\n').slice(0, 14).forEach((l: string, i: number) => ctx.fillText(l, 12, 12 + i * 17));
+      } catch { /* ignore */ }
     }
-    this.render();
     this.rafId = requestAnimationFrame(this.loop);
   };
 
@@ -443,6 +461,7 @@ export class CombatEngine {
       walkAnim: 0,
       isMoving: true,
       invuln: 0,
+      attackAnim: 0,
     });
 
     if (isBoss && this.currentWave % BOSS_WAVE_INTERVAL === 0) {
@@ -1009,6 +1028,7 @@ export class CombatEngine {
       e.spawnAnim = Math.max(0, e.spawnAnim - dt);
       e.hitFlash = Math.max(0, e.hitFlash - dt);
       e.attackCooldown = Math.max(0, e.attackCooldown - dt);
+      e.attackAnim = Math.max(0, e.attackAnim - dt);
       e.slowTimer = Math.max(0, e.slowTimer - dt);
       e.bossAbilityCooldown = Math.max(0, e.bossAbilityCooldown - dt);
       e.invuln = Math.max(0, e.invuln - dt);
@@ -1083,6 +1103,7 @@ export class CombatEngine {
         if (d < attackRange && e.attackCooldown <= 0) {
           this.playerTakeDamage(e.def.damage * 1.3);
           e.attackCooldown = 2.0;
+          e.attackAnim = 0.35;
         }
       } else {
         // Melee: chase and attack
@@ -1093,6 +1114,7 @@ export class CombatEngine {
         if (d < attackRange && e.attackCooldown <= 0) {
           this.playerTakeDamage(e.def.damage);
           e.attackCooldown = 1.0;
+          e.attackAnim = 0.3;
         }
       }
 
@@ -1297,7 +1319,7 @@ export class CombatEngine {
         break;
       case 19: { // Final boss: random ability from any previous
         const randomIdx = Math.floor(Math.random() * 19);
-        const fakeId = `${e.def.dungeonId || 'green_field'}_boss_${randomIdx + 1}`;
+                const fakeId = `${e.def.dungeonId || 'whispering_grove'}_boss_${randomIdx + 1}`;
         this.doBossAbility({ ...e, def: { ...e.def, id: fakeId } });
         break; }
     }
@@ -1595,7 +1617,7 @@ export class CombatEngine {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
 
-    const dg = DUNGEONS.find(d => d.id === (this.profile.equippedDungeons[0] || 'whispering_grove'))!;
+    const dg = DUNGEONS.find(d => d.id === (this.profile.equippedDungeons[0] || 'whispering_grove')) || DUNGEONS[0];
     const grad = ctx.createRadialGradient(this.width / 2, this.height / 2, 0, this.width / 2, this.height / 2, Math.max(this.width, this.height) / 1.5);
     grad.addColorStop(0, dg.bgGradient[0]);
     grad.addColorStop(1, dg.bgGradient[1]);
@@ -1689,7 +1711,61 @@ export class CombatEngine {
     }
   }
 
-    renderEnemy(e: Enemy) {
+    // === Enemy rendering helpers ===
+  getEnemyEmoji(e: Enemy, shape: EnemyShape): string {
+    // Делегируем в новую систему (покрывает весь список монстров)
+    return getMonsterEmoji(e.def.name, shape);
+  }
+
+  drawBossPixelArt(ctx: CanvasRenderingContext2D, e: Enemy, r: number, color: string, hit: boolean) {
+    const N = 16;
+    const cellSize = (r * 2) / N;
+    const finalBoss = !!e.def.isFinalBoss;
+    const pattern = buildBossPattern(e.def.id, e.def.shape || 'humanoid', finalBoss);
+    const now = performance.now() / 1000;
+
+    const cMain = hit ? '#ffffff' : color;
+    const cDark = hit ? '#ffffff' : shadeColor(color, 0.45);
+    const cLight = hit ? '#ffffff' : shadeColor(color, 1.45);
+    const eyeGlow = 0.7 + Math.sin(now * 4 + e.x) * 0.3;
+
+    const colors: Record<number, string> = {
+      1: cMain,
+      2: cDark,
+      4: hit ? '#fff' : '#f0c050',
+      5: cLight,
+    };
+
+    // Проход 1: тело и контур
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const v = pattern[y][x];
+        if (v === 0 || v === 3) continue;
+        ctx.fillStyle = colors[v] || cMain;
+        ctx.fillRect(-N / 2 * cellSize + x * cellSize, -N / 2 * cellSize + y * cellSize, cellSize + 0.5, cellSize + 0.5);
+      }
+    }
+
+    // Проход 2: светящиеся глаза
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (pattern[y][x] !== 3) continue;
+        ctx.save();
+        ctx.shadowColor = hit ? '#fff' : '#ffcc33';
+        ctx.shadowBlur = 6 + eyeGlow * 6;
+        ctx.fillStyle = hit ? '#fff' : `rgba(255,204,51,${0.6 + eyeGlow * 0.4})`;
+        ctx.fillRect(-N / 2 * cellSize + x * cellSize, -N / 2 * cellSize + y * cellSize, cellSize + 0.5, cellSize + 0.5);
+        ctx.restore();
+      }
+    }
+  }
+
+  getBossPixelPattern(name: string, phase: number): number[][] {
+    // Совместимость: процедурный генератор по id/форме
+    return buildBossPattern(name, 'humanoid', false);
+  }
+
+  renderEnemy(e: Enemy) {
     const ctx = this.ctx;
     let alpha = 1;
     let scale = 1;
@@ -1710,73 +1786,126 @@ export class CombatEngine {
     ctx.globalAlpha = alpha;
 
     const r = e.def.radius;
-    const bob = Math.sin(e.walkAnim) * 2;
+    const now = performance.now() / 1000;
+    const shape: EnemyShape = e.def.shape || 'blob';
+    const hueShift = e.def.hueShift || 0;
 
-    // Shadow
+    // === Анимации ===
+    // 1) Подскок при ходьбе / дыхание в покое
+    const bob = e.isMoving ? Math.sin(e.walkAnim) * 3 : Math.sin(now * 2.5 + e.x) * 1.5;
+    // 2) Squash & stretch
+    const squashPhase = e.isMoving ? Math.sin(e.walkAnim * 2) : Math.sin(now * 2.5 + e.x);
+    const sy = 1 + squashPhase * (e.isMoving ? 0.07 : 0.035);
+    const sx = 1 - (sy - 1) * 0.7;
+    // 3) Выпад при атаке (в сторону игрока)
+    const lungeT = e.attackAnim > 0 ? Math.sin((1 - e.attackAnim / 0.35) * Math.PI) : 0;
+    const lunge = lungeT * (e.isBoss ? 16 : 10);
+    // 4) Дрожь при замахе (charger)
+    const windup = e.def.attackType === 'charger' && e.attackCooldown > 1.0
+      ? Math.sin(now * 45) * 2.5 : 0;
+    // 5) Смерть: вращение и оседание
+    const deathRot = e.isDying ? e.deathAnim * 0.9 : 0;
+    const spawnRise = e.spawnAnim > 0 ? e.spawnAnim * 26 : 0;
+
+    // Тень (дышит вместе с телом)
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(e.x, e.y + r * 0.8, r * 0.7, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(e.x, e.y + r * 0.85, r * 0.7 * sx, r * 0.28 * sy, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.save();
-    ctx.translate(e.x, e.y + bob);
-    ctx.scale(scale, scale);
+    ctx.translate(e.x + windup, e.y + bob - spawnRise);
+    if (deathRot) ctx.rotate(deathRot);
+    ctx.scale(scale * sx, scale * sy);
+    // Выпад в направлении цели (вправо-влево упрощённо по знаку)
+    if (lunge !== 0) ctx.translate(lunge * Math.sign(this.player.x - e.x || 1), -lunge * 0.15);
 
-    const shape: EnemyShape = e.def.shape || 'blob';
     const baseColor = e.hitFlash > 0 ? '#ffffff' : e.def.color;
-    const hueShift = e.def.hueShift || 0;
+    const hit = e.hitFlash > 0;
 
-    // Boss glow
+    // Свечение босса
     if (e.isBoss) {
       ctx.shadowColor = e.def.color;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 22 + Math.sin(now * 3) * 8;
     }
 
     if (e.isBoss) {
-      // Bosses: Pixel-art rendering via canvas grid (2.5x mob size)
-      this.drawBossPixelArt(ctx, e, r, baseColor, e.hitFlash > 0);
+      this.drawBossPixelArt(ctx, e, r, baseColor, hit);
     } else {
-      // Regular enemies: emoji rendering with hue-rotate and tier prefixes
-      ctx.fillStyle = baseColor;
-      const tierPrefix = e.def.hueShift ? Math.floor(e.def.hueShift / 18) : 0;
-      const emoji = this.getEnemyEmoji(e, shape);
-      const emojiSize = r * 2.5;
+      // === Обычный монстр: подложка-аура + большой эмодзи монстра ===
+      const aura = shadeColor(e.def.color, 0.55);
+      ctx.globalAlpha = alpha * 0.5;
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.ellipse(0, r * 0.15, r * 1.05, r * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = alpha;
 
+      const emoji = getMonsterEmoji(e.def.name, shape);
+      const emojiSize = r * 2.4;
       ctx.font = `normal normal ${emojiSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.filter = hueShift > 0 && !e.hitFlash ? `hue-rotate(${hueShift}deg)` : 'none';
+      // Тень эмодзи для объёма
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 3;
+      ctx.filter = hit ? 'brightness(2.2) saturate(0.4)'
+        : hueShift > 0 ? `hue-rotate(${hueShift}deg)` : 'none';
       ctx.fillText(emoji, 0, 0);
+      ctx.restore();
       ctx.filter = 'none';
     }
 
     ctx.shadowBlur = 0;
+    ctx.restore();
 
-    // Status effects
+    // === Статус-эффекты ===
     if (e.slowTimer > 0) {
       ctx.strokeStyle = 'rgba(143,200,255,0.5)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
+      ctx.arc(e.x, e.y + bob, r + 4, 0, Math.PI * 2);
       ctx.stroke();
     }
-
     if (e.poisonTimer > 0) {
       ctx.fillStyle = 'rgba(122,191,63,0.3)';
       ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.arc(e.x, e.y + bob, r, 0, Math.PI * 2);
       ctx.fill();
     }
-
     if (e.invuln > 0) {
       ctx.strokeStyle = `rgba(255,255,255,${e.invuln / 4})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(0, 0, r + 6, 0, Math.PI * 2);
+      ctx.arc(e.x, e.y + bob, r + 6, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    ctx.restore();
+    // === Эмодзи-бейдж над монстром/боссом ===
+    if (!e.isDying) {
+      const badgeEmoji = getMonsterEmoji(e.def.name, shape);
+      const badgeR = e.isBoss ? 15 : 10;
+      const badgeY = e.y - r * (e.isBoss ? 2.6 : 2.2) - badgeR - 6 + bob * 0.5;
+
+      // Пузырь
+      ctx.globalAlpha = alpha * 0.95;
+      ctx.fillStyle = 'rgba(10,10,18,0.85)';
+      ctx.beginPath();
+      ctx.arc(e.x, badgeY, badgeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = e.isBoss ? '#f0c050' : 'rgba(200,155,60,0.7)';
+      ctx.lineWidth = e.isBoss ? 2.5 : 1.5;
+      ctx.stroke();
+
+      // Эмодзи внутри пузыря
+      ctx.font = `normal normal ${Math.round(badgeR * 1.25)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeEmoji, e.x, badgeY + 1);
+      ctx.globalAlpha = 1;
+    }
 
     // Health bar
     if (e.health < e.maxHealth && !e.isDying) {
@@ -1794,7 +1923,7 @@ export class CombatEngine {
       ctx.font = 'bold 14px Cinzel, serif';
       ctx.textAlign = 'center';
       const name = this.profile.language === 'ru' ? e.def.name.ru : e.def.name.en;
-      ctx.fillText(name, e.x, e.y - r - 18);
+      ctx.fillText(name, e.x, e.y - r * 2.6 - 40);
     }
 
     ctx.globalAlpha = 1;
@@ -2056,161 +2185,6 @@ export class CombatEngine {
         break;
     }
   }
-
-  getEnemyEmoji(e: Enemy, shape: EnemyShape): string {
-    const tier = e.def.hueShift ? Math.floor(e.def.hueShift / 18) : 0;
-    const prefix = tier === 0 ? 'Молодой ' : tier >= 3 ? 'Древний ' : '';
-    const name = e.def.name.en.toLowerCase();
-
-    if (name.includes('goblin') || name.includes('гоблин')) return '👹';
-    if (name.includes('spider') || name.includes('паук')) return '🕷️';
-    if (name.includes('bat') || name.includes('летучая мышь')) {
-      const arrows = ['Young', 'Молодой'];
-      return arrows.includes(prefix) ? '🦇' : '🦇';
-    }
-    if (name.includes('skeleton') || name.includes('скелет')) return '💀';
-    if (name.includes('slime') || name.includes('слизень')) return '🟢';
-    if (name.includes('beetle') || name.includes('жук')) return '🪲';
-    if (name.includes('ghost') || name.includes('призрак')) return '👻';
-    if (name.includes('imp') || name.includes('имп')) return '🔥';
-    if (name.includes('wolf') || name.includes('волк')) return '🐺';
-    if (name.includes('crystal') || name.includes('кристалл')) return '🔮';
-    if (name.includes('golem') || name.includes('голем')) return '🗿';
-    if (name.includes('dragon') || name.includes('дракон')) return '🐉';
-    if (name.includes('eye') || name.includes('глаз')) return '👁️';
-    if (name.includes('spirit') || name.includes('дух')) return '🌫️';
-    if (name.includes('shadow') || name.includes('тень')) return '🌑';
-    if (name.includes('gargoyle') || name.includes('гаргулия')) return '🦇';
-
-    switch (shape) {
-      case 'blob': return '🟢';
-      case 'spider': return '🕷️';
-      case 'bat': return '🦇';
-      case 'beetle': return '🪲';
-      case 'spirit': return '👻';
-      case 'shadow': return '🌑';
-      case 'gargoyle': return '🦇';
-      case 'skeleton': return '💀';
-      case 'golem': return '🗿';
-      case 'imp': return '🔥';
-      case 'wolf': return '🐺';
-      case 'crystal': return '🔮';
-      case 'humanoid': return '👹';
-      case 'eye': return '👁️';
-      case 'dragon': return '🐉';
-      default: return '👹';
-    }
-  }
-
-  drawBossPixelArt(ctx: CanvasRenderingContext2D, e: Enemy, r: number, color: string, hit: boolean) {
-    const spriteW = 20;
-    const spriteH = 12;
-    const cellSize = (r * 2) / spriteW;
-
-    const bossName = e.def.name.en.toLowerCase();
-    const pattern = this.getBossPixelPattern(bossName, 0);
-
-    ctx.fillStyle = hit ? '#fff' : color;
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.lineWidth = 1;
-
-    for (let y = 0; y < spriteH; y++) {
-      for (let x = 0; x < spriteW; x++) {
-        if (pattern[y] && pattern[y][x]) {
-          ctx.fillRect(-spriteW / 2 * cellSize + x * cellSize, -spriteH / 2 * cellSize + y * cellSize, cellSize, cellSize);
-        }
-      }
-    }
-
-    // Glowing eyes for boss
-    ctx.fillStyle = hit ? '#fff' : '#ffaa00';
-    const eyeY = -spriteH / 2 * cellSize + 3 * cellSize;
-    const eyeXLeft = -3 * cellSize;
-    const eyeXRight = 3 * cellSize;
-    ctx.fillRect(eyeXLeft, eyeY, cellSize * 2, cellSize * 2);
-    ctx.fillRect(eyeXRight, eyeY, cellSize * 2, cellSize * 2);
-
-    // Dark outline around the sprite
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.lineWidth = cellSize;
-    ctx.strokeRect(-spriteW / 2 * cellSize, -spriteH / 2 * cellSize, spriteW * cellSize, spriteH * cellSize);
-
-    ctx.restore();
-  }
-
-  getBossPixelPattern(name: string, phase: number): number[][] {
-    const bossPatterns: Record<string, (phase: number) => number[][]> = {
-      'goblin-destroyer': (p) => {
-        return [
-          [0,0,0,0,1,1,1,0,0,0],
-          [0,0,1,1,1,1,1,1,0,0],
-          [0,1,1,1,1,1,1,1,1,0],
-          [1,1,0,1,1,1,1,0,1,1],
-          [1,1,1,1,1,1,1,1,1,1],
-          [1,1,1,1,1,1,1,1,1,1],
-          [1,1,1,1,1,1,1,1,1,1],
-          [0,0,1,1,0,0,1,1,0,0],
-          [0,0,1,1,0,0,1,1,0,0],
-        ];
-      },
-      'dark-wizard': (p) => {
-        return [
-          [0,0,1,1,1,1,1,0,0,0],
-          [0,1,0,0,0,0,0,1,0,0],
-          [0,0,1,1,1,1,1,0,0,0],
-          [0,0,0,1,1,1,1,0,0,0],
-          [0,0,0,1,1,1,1,0,0,0],
-          [1,1,1,1,1,1,1,1,1,0],
-          [0,0,0,1,1,1,1,0,0,0],
-          [0,0,0,1,1,1,1,0,0,0],
-          [0,0,1,1,0,0,1,1,0,0],
-        ];
-      },
-      'shadow-beast': (p) => {
-        return [
-          [0,0,0,1,1,1,1,0,0,0],
-          [0,0,1,1,1,1,1,1,0,0],
-          [0,1,1,1,1,1,1,1,1,0],
-          [1,1,1,1,1,1,1,1,1,1],
-          [1,1,0,1,1,1,1,0,1,1],
-          [1,1,1,1,1,1,1,1,1,1],
-          [0,1,1,1,1,1,1,1,1,0],
-          [0,0,1,1,0,0,1,1,0,0],
-          [0,0,0,1,0,0,1,0,0,0],
-        ];
-      },
-      'ancient-drake': (p) => {
-        return [
-          [0,0,0,0,1,1,0,0,0,0],
-          [0,0,0,1,0,0,1,0,0,0],
-          [0,0,1,0,0,0,0,1,0,0],
-          [0,1,1,1,1,1,1,1,1,0],
-          [1,1,1,1,1,1,1,1,1,1],
-          [0,0,1,1,1,1,1,1,0,0],
-          [0,0,1,1,1,1,1,1,0,0],
-          [0,0,0,1,1,1,1,0,0,0],
-          [0,0,0,1,0,0,1,0,0,0],
-        ];
-      },
-      'crystal-guardian': (p) => {
-        return [
-          [0,0,0,0,1,1,0,0,0,0],
-          [0,0,0,1,1,1,1,0,0,0],
-          [0,0,1,1,1,1,1,1,0,0],
-          [0,1,1,1,1,1,1,1,1,0],
-          [1,1,1,1,1,1,1,1,1,1],
-          [1,1,1,1,1,1,1,1,1,1],
-          [0,1,1,1,1,1,1,1,1,0],
-          [0,0,1,1,1,1,1,1,0,0],
-          [0,0,0,1,1,1,1,0,0,0],
-        ];
-      },
-    };
-
-    const fn = bossPatterns[name] || bossPatterns['dark-wizard'];
-    return fn(phase);
-  }
-
   renderPlayer() {
     const ctx = this.ctx;
     const p = this.player;
@@ -2315,27 +2289,27 @@ export class CombatEngine {
     ctx.fill();
     ctx.restore();
 
-    // Shield in left hand (if equipped)
-    if (this.profile.shieldEquipped && this.profile.shieldLevel > 0) {
-      ctx.save();
-      ctx.rotate(angle - Math.PI / 2);
-      ctx.translate(r * 0.5, 0);
-      // Round golden shield
-      ctx.fillStyle = '#c0a040';
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#8a7020';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    // Shield boss (center)
-    ctx.fillStyle = '#e0c060';
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+      // Shield in left hand (if equipped)
+      if (this.profile.shieldEquipped && this.profile.shieldLevel > 0) {
+        ctx.save();
+        ctx.rotate(angle - Math.PI / 2);
+        ctx.translate(r * 0.5, 0);
+        // Round golden shield
+        ctx.fillStyle = '#c0a040';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#8a7020';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Shield boss (center)
+        ctx.fillStyle = '#e0c060';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
-  }
 
   drawArcher(ctx: CanvasRenderingContext2D, r: number, flash: boolean, facing: Vec2, attackOffset: number, chargeTime: number) {
     // Elf in green clothes

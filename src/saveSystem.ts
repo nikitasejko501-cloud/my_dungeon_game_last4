@@ -7,8 +7,28 @@ export function loadGame(): SaveProfile {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createDefaultProfile();
-    const data = JSON.parse(raw) as Partial<SaveProfile>;
+        const data = JSON.parse(raw) as Partial<SaveProfile>;
     const def = createDefaultProfile();
+    // Migrate old dungeon IDs to new ones
+    const DUNGEON_ID_MAP: Record<string, string> = {
+      'green_field': 'whispering_grove',
+      'dark_forest': 'whispering_grove',
+      'caves': 'gnomish_ruins',
+      'ancient_ruins': 'gnomish_ruins',
+      'volcano': 'necropolis',
+      'abyss': 'sky_citadel',
+      'forest': 'whispering_grove',
+      'forest_boss': 'whispering_grove',
+    };
+    const migrateDungeon = (id: string) => DUNGEON_ID_MAP[id] || id;
+    const migratedEquipped = (data.equippedDungeons || def.equippedDungeons).map(migrateDungeon);
+    const migratedUnlocked = (data.unlockedDungeons || def.unlockedDungeons).map(migrateDungeon);
+    const migratedProgress: Record<string, number> = {};
+    if (data.dungeonProgress) {
+      for (const [k, v] of Object.entries(data.dungeonProgress)) {
+        migratedProgress[migrateDungeon(k)] = v;
+      }
+    }
     return {
       ...def,
       ...data,
@@ -18,9 +38,9 @@ export function loadGame(): SaveProfile {
       ownedPotions: { ...def.ownedPotions, ...(data.ownedPotions || {}) },
       bag: data.bag || [],
       trophies: data.trophies || [],
-      dungeonProgress: data.dungeonProgress || {},
-      unlockedDungeons: data.unlockedDungeons || def.unlockedDungeons,
-      equippedDungeons: data.equippedDungeons || def.equippedDungeons,
+      dungeonProgress: migratedProgress,
+      unlockedDungeons: migratedUnlocked,
+      equippedDungeons: migratedEquipped,
       settings: { ...def.settings, ...(data.settings || {}) },
       talentLevels: data.talentLevels || def.talentLevels,
       shieldLevel: data.shieldLevel ?? def.shieldLevel,
