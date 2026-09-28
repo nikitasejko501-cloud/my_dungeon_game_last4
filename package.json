@@ -9,8 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "smoke:compile": "tsc --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck --outDir .smoke src/combatEngine.ts",
-    "smoke": "node smoke.cjs"
+    "smoke": "node smoke.cjs --selftest && node smoke.cjs",
+    "smoke:self": "node smoke.cjs --selftest",
+    "smoke:run": "node smoke.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

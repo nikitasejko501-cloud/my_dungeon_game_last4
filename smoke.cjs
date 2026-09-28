@@ -388,9 +388,9 @@ function runFight(o) {
   eng.stop();
   st.frames = frame;
   st.endWave = eng.currentWave;
-  st.empty = 0;
   return { tag, st, o };
 }
+
 // === СЦЕНАРИИ ==============================================================
 const ALL_DUNGEONS = g.DUNGEONS.map(d => d.id);
 const SCENARIOS = [
