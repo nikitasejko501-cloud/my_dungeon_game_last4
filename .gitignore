@@ -1,1 +1,5 @@
 node_modules
+
+.smoke/
+out/
+*_out.txt
