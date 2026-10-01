@@ -33,7 +33,9 @@ export type BossAttackId =
   | 'meteorRain' | 'groundSlam' | 'quakeLine' | 'piercingLance'
   | 'lightningStrikes' | 'frostNova' | 'poisonSpray' | 'shadowTendrils'
   | 'voidOrbs' | 'crystalShards' | 'webSnare' | 'boneVolley'
-  | 'flameBreath' | 'sonicScream' | 'charge';
+  | 'flameBreath' | 'sonicScream' | 'charge'
+  // приёмы этого прохода: луч взгляда и четыре новых паттерна
+  | 'gazeBeam' | 'crossFan' | 'twinRunes' | 'riftLine' | 'mineSwarm';
 
 export interface BossAttackDef {
   id: BossAttackId;
@@ -152,6 +154,36 @@ export const BOSS_ATTACKS: Record<BossAttackId, BossAttackDef> = {
     id: 'charge', form: 'lunge', count: 1, damageMul: 1.0, telegraph: 0.5,
     radius: 150, kind: 'jag', shake: 7, hintRu: 'ТАРАН!',
   }),
+  // === НОВЫЕ ПРИЁМЫ (добавлены в этом проходе) ===
+  // Форма 'beam' была объявлена в типах, но не имела НИ ОДНОГО пресета — то есть
+  // сигнатура `gazeBeam` («взгляд-луч», см. startBossCast) физически не могла
+  // выпасть в бою. Теперь у неё есть хозяева: глаз, призрак и кристалл.
+  gazeBeam: D({
+    id: 'gazeBeam', form: 'beam', count: 1, damageMul: 0.85, telegraph: 0.8,
+    radius: 560, kind: 'void', shake: 5, hintRu: 'ВЗГЛЯД',
+  }),
+  // Двойной «ведёрный» веер — шире и злее обычного wideFan, но всё с карманом.
+  crossFan: D({
+    id: 'crossFan', form: 'fan', count: 7, damageMul: 0.28, telegraph: 0.6,
+    radius: 400, kind: 'frost', shake: 3, hintRu: 'ЛЕДЯНОЙ КРЕСТ',
+  }),
+  // Кольцо с двумя «карманами»: игрок видит две безопасные зоны, выбор сложнее.
+  twinRunes: D({
+    id: 'twinRunes', form: 'ring', count: 16, damageMul: 0.20, telegraph: 0.7,
+    radius: 500, kind: 'sigil', shake: 4, hintRu: 'РУННОЕ КОЛЬЦО',
+  }),
+  // Разлом по земле — длиннее обычной quakeLine, урон дороже.
+  riftLine: D({
+    id: 'riftLine', form: 'groundLine', count: 5, damageMul: 0.62, telegraph: 0.75,
+    radius: 460, kind: 'void', shake: 6,
+    puddle: { element: 'dark', mul: 0.35, scale: 1.1, life: 6 },
+    hintRu: 'РАЗЛОМ',
+  }),
+  // Рой мин: игрок вынужден идти, а не стоять на месте.
+  mineSwarm: D({
+    id: 'mineSwarm', form: 'mines', count: 5, damageMul: 0.34, telegraph: 0.65,
+    radius: 520, kind: 'venom', shake: 3, hintRu: 'МИНЫ',
+  }),
 };
 
 // ============================================================
@@ -164,18 +196,20 @@ export const BOSS_ATTACKS: Record<BossAttackId, BossAttackDef> = {
 const RANGED_POOL: BossAttackId[] = [
   'aimedVolley', 'wideFan', 'boneVolley', 'flameBreath', 'poisonSpray',
   'lightningStrikes', 'shadowTendrils', 'crystalShards', 'voidOrbs',
-  'piercingLance', 'frostNova', 'ringBurst',
+  'piercingLance', 'frostNova', 'ringBurst', 'crossFan', 'twinRunes',
+  'mineSwarm', 'gazeBeam',
 ];
 const MELEE_POOL: BossAttackId[] = [
   'groundSlam', 'quakeLine', 'charge', 'sonicScream', 'wideFan',
   'ringBurst', 'flameBreath', 'crystalShards', 'lightningStrikes',
+  'riftLine', 'twinRunes', 'crossFan',
 ];
 const ELEMENT_FAVORITES: Partial<Record<Element, BossAttackId[]>> = {
   fire: ['flameBreath', 'meteorRain', 'groundSlam'],
-  ice: ['frostNova', 'aimedVolley', 'piercingLance'],
-  poison: ['poisonSpray', 'safeRing', 'webSnare'],
-  storm: ['lightningStrikes', 'wideFan', 'quakeLine'],
-  dark: ['shadowTendrils', 'voidOrbs', 'safeRing'],
+  ice: ['frostNova', 'aimedVolley', 'piercingLance', 'crossFan'],
+  poison: ['poisonSpray', 'safeRing', 'webSnare', 'mineSwarm'],
+  storm: ['lightningStrikes', 'wideFan', 'quakeLine', 'twinRunes'],
+  dark: ['shadowTendrils', 'voidOrbs', 'safeRing', 'gazeBeam', 'riftLine'],
 };
 const SHAPE_FAVORITES: Partial<Record<EnemyShape, string[]>> = {
   blob: ['safeRing', 'groundSlam', 'charge'],
@@ -185,12 +219,12 @@ const SHAPE_FAVORITES: Partial<Record<EnemyShape, string[]>> = {
   spider: ['webSnare', 'poisonSpray', 'legStabFan'],
   wolf: ['charge', 'pounceFan', 'sonicScream'],
   bat: ['wideFan', 'sonicScream', 'ringBurst'],
-  spirit: ['voidOrbs', 'shadowTendrils', 'safeRing'],
-  shadow: ['shadowTendrils', 'voidOrbs', 'aimedVolley'],
-  crystal: ['crystalShards', 'ringBurst', 'piercingLance'],
+  spirit: ['voidOrbs', 'shadowTendrils', 'safeRing', 'gazeBeam'],
+  shadow: ['shadowTendrils', 'voidOrbs', 'aimedVolley', 'riftLine'],
+  crystal: ['crystalShards', 'ringBurst', 'piercingLance', 'gazeBeam'],
   gargoyle: ['charge', 'wideFan', 'lightningStrikes'],
   imp: ['flameBreath', 'aimedVolley', 'groundSlam'],
-  eye: ['voidOrbs', 'lightningStrikes', 'aimedVolley'],
+  eye: ['voidOrbs', 'lightningStrikes', 'aimedVolley', 'gazeBeam', 'twinRunes'],
   beetle: ['quakeLine', 'wideFan', 'charge'],
   dragon: ['flameBreath', 'meteorRain', 'piercingLance'],
 };
@@ -366,6 +400,30 @@ export function attackForPhase(kit: BossKit, hpFrac: number): BossAttackDef {
  */
 export function phaseDamageMul(phase: 1 | 2 | 3): number {
   return phase === 3 ? 1.35 : phase === 2 ? 1.15 : 1.0;
+}
+
+/**
+ * ЭСКАЛАЦИЯ ПАТТЕРНА ПО ФАЗЕ. До этого фаза меняла ТОЛЬКО множитель урона, и
+ * один и тот же приём выглядел на 100% и на 30% HP абсолютно одинаково — босс
+ * «не злился». Теперь поздняя фаза делает сам приём злее:
+ *   фаза 2 → +1 снаряд, телеграф короче на 0.05 с;
+ *   фаза 3 → +2 снаряда, телеграф короче на 0.12 с.
+ * Важно: возвращается НОВЫЙ объект (копия), а сам пресет не мутируется — иначе
+ * вторая фаза навсегда испортила бы первую для всех остальных бойцов.
+ *
+ * Счётчики ограничены сверху по форме: у кольца больше 18 снарядов превращается
+ * в нечитаемую стену, у минут — больше 6 точек уже не обойти, рывок всегда один.
+ */
+export function escalateForPhase(atk: BossAttackDef, phase: 1 | 2 | 3): BossAttackDef {
+  if (phase === 1) return atk;
+  const bonus = phase === 2 ? 1 : 2;
+  const LIMIT: Record<BossAttackForm, number> = {
+    fan: 9, ring: 18, rain: 9, groundLine: 7, lunge: 1, beam: 1, mines: 6,
+  };
+  const count = Math.min(LIMIT[atk.form] ?? atk.count, atk.count + bonus);
+  const telegraph = Math.max(0.28, Math.round((atk.telegraph - 0.05 * bonus) * 100) / 100);
+  if (count === atk.count && telegraph === atk.telegraph) return atk;
+  return { ...atk, count, telegraph };
 }
 
 // ============================================================

@@ -320,6 +320,68 @@ export function monsterAbilitiesFor(
     && !!WEAPON_ABILITY[opts.weapon] && !handWeapons.includes(opts.weapon);
   const isRangedClass = attackType === 'ranged' || weaponIsRanged;
   const out: MonsterAbility[] = [];
+  // --- Общий выбор ВТОРОГО приёма (один механизм для ближнего и дальнего класса) ---
+  // Раньше выбор жил внутри «ближней» ветки, и у ДАЛЬНИХ недвуногих тварей
+  // (летучие мыши, призраки, тени, глаза, слизни, жуки, кристаллы, драконы)
+  // набор состоял из ОДНОГО плевка: ~80 монстров годами били единственным
+  // движением, и подойти к такому было безопаснее, чем к голему. Теперь второй
+  // слот получают и они: подошёл вплотную — получил телесный удар.
+  const bodyBody = body.body;
+  /** Порядок кандидатов перемешивается по id: 0 → как написано, 1 → наоборот. */
+  const flip = (h >>> 3) & 1;
+  const list = (a: MonsterAbility, b: MonsterAbility, safe: MonsterAbility): MonsterAbility[] =>
+    flip ? [b, a, safe] : [a, b, safe];
+  /** Берёт первый кандидат, отличный от первого приёма по телу и подсказке. */
+  const pushSecond = (cands: MonsterAbility[]): void => {
+    for (const c of cands) {
+      if (c.body !== bodyBody || c.hintRu !== out[0].hintRu) { out.push(c); return; }
+    }
+  };
+  // Запасной кандидат — укус «левой лапой»: его тело (legStab) почти никогда не
+  // совпадает с основным приёмом формы, поэтому набор гарантированно ≥ 2.
+  const SAFE = AB({ ...BITE, weight: 0.9, cooldown: 2.8, hintRu: 'ХВАТКА', hintEn: 'GRAB' });
+  /** Телесный «второй» приём по форме: у каждой формы несколько кандидатов. */
+  const pushShapeSecond = (): void => {
+    if (biped && handWeapons.includes(weapon)) {
+      // Двуногий-мечник: выпад + широкий мах — два РАЗНЫХ удара мечом.
+      pushSecond([bodyBody === 'weaponSweep'
+        ? AB({ ...BITE_SWEEP, weight: 1.1, cooldown: 2.6, hintRu: 'РАЗМАХ', hintEn: 'CLEAVE' })
+        : AB({ ...THRUST_WEAPON, weight: 1.1, cooldown: 2.6, hintRu: 'ВЫПАД', hintEn: 'STRIKE' }), SAFE]);
+      return;
+    }
+    switch (shape) {
+      case 'golem': case 'gargoyle':
+        pushSecond(list(
+          AB({ ...BITE_SLAM, weight: 1.0, cooldown: 2.8, hintRu: 'ОБРУШЕНИЕ', hintEn: 'CRUSH' }),
+          AB({ ...BITE, weight: 1.0, cooldown: 2.8, hintRu: 'ХВАТКА', hintEn: 'GRAB' }), SAFE));
+        break;
+      case 'beetle': case 'crystal':
+        pushSecond(list(
+          AB({ ...BITE_SLAM, weight: 1.0, cooldown: 2.6, hintRu: 'НАВАЛ', hintEn: 'SLAM' }),
+          AB({ ...BITE_CLAW, weight: 1.0, cooldown: 2.6, hintRu: 'ПИЛА', hintEn: 'SAW' }), SAFE));
+        break;
+      case 'blob':
+        pushSecond(list(
+          AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.6, hintRu: 'ТОЛЧОК', hintEn: 'SHOVE' }),
+          AB({ ...BITE, weight: 1.0, cooldown: 2.6, hintRu: 'ХВАТКА', hintEn: 'GRAB' }), SAFE));
+        break;
+      case 'bat': case 'spirit': case 'shadow': case 'eye':
+        pushSecond(list(
+          AB({ ...BITE, weight: 1.0, cooldown: 2.6, hintRu: 'ХВАТКА', hintEn: 'GRAB' }),
+          AB({ ...BITE_CLAW, weight: 1.0, cooldown: 2.6, hintRu: 'КОГТИ', hintEn: 'CLAWS' }), SAFE));
+        break;
+      case 'dragon':
+        pushSecond(list(
+          AB({ ...BITE_SLAM, weight: 1.0, cooldown: 2.8, hintRu: 'УДАР ХВОСТОМ', hintEn: 'TAIL' }),
+          AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.8, hintRu: 'ТАРАН', hintEn: 'RAM' }), SAFE));
+        break;
+      default:
+        pushSecond(list(
+          AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.6, hintRu: 'ТАРАН', hintEn: 'RAM' }),
+          AB({ ...BITE_CLAW, weight: 1.0, cooldown: 2.6, hintRu: 'КОГТИ', hintEn: 'CLAWS' }), SAFE));
+    }
+  };
+
   if (shape === 'wolf') {
     // ВОЛК — зверь: только телесные приёмы (прыжок-укус и редкие когти),
     // ни магии, ни плевков. Это уже проверяет abilityaudit.
@@ -330,48 +392,21 @@ export function monsterAbilitiesFor(
     out.push(body, AB({ ...SPIT_WEB, weight: 0.75, cooldown: 5.0 }));
   } else if (isRangedClass) {
     // ДАЛЬНИЙ КЛАСС: главный приём — дальнобойный (выстрел/заклинание/плевок).
-    // Двуногий дополнительно получает РЕДКИЙ ближний выпад, чтобы в упор не
-    // оставаться беспомощным (лучник бьёт прикладом/кинжалом). Звероформа —
-    // только дальний.
+    // Второй слот — телесный: у двуногих это удар прикладом, у недвуногих —
+    // приём их собственной анатомии (мина-призрак хватает, слизень наваливается).
     const primary = (opts.weapon && WEAPON_ABILITY[opts.weapon]) || elementRanged || ranged;
     out.push(AB({ ...primary, weight: 4.2 }));
     if (biped) {
       out.push(AB({ ...THRUST_WEAPON, weight: 1.0, cooldown: 3.0, hintRu: 'УДАР В УПОР', hintEn: 'CLOSE HIT' }));
+    } else {
+      pushShapeSecond();
     }
   } else {
     // БЛИЖНИЙ КЛАСС (melee/charger): только телесные удары — 1–2 приёма того
     // же «языка». Никакой магии: слизень, голем и жук остаются собой в любом
     // подземелье.
     out.push(body);
-    // Второй приём ВСЕГДА отличается от первого и по телу, и по подсказке.
-    const bodyBody = body.body;
-    const pick2 = (): MonsterAbility | null => {
-      if (biped && handWeapons.includes(weapon)) {
-        // Двуногий-мечник: первый приём — выпад, второй — широкий мах (или
-        // наоборот): два разных удара мечом, а не два одинаковых.
-        return bodyBody === 'weaponSweep'
-          ? AB({ ...BITE_SWEEP, weight: 1.1, cooldown: 2.6, hintRu: 'РАЗМАХ', hintEn: 'CLEAVE' })
-          : AB({ ...THRUST_WEAPON, weight: 1.1, cooldown: 2.6, hintRu: 'ВЫПАД', hintEn: 'STRIKE' });
-      }
-      switch (shape) {
-        case 'golem': case 'gargoyle':
-          return bodyBody === 'slimeSlam' ? AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.8, hintRu: 'ТАРАН', hintEn: 'RAM' })
-            : AB({ ...BITE_SLAM, weight: 1.0, cooldown: 2.8, hintRu: 'ОБРУШЕНИЕ', hintEn: 'CRUSH' });
-        case 'beetle': case 'crystal':
-          return bodyBody === 'beetleRam' ? AB({ ...BITE_SLAM, weight: 1.0, cooldown: 2.6, hintRu: 'НАВАЛ', hintEn: 'SLAM' })
-            : AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.6, hintRu: 'ТАРАН', hintEn: 'RAM' });
-        case 'blob':
-          return AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.6, hintRu: 'ТОЛЧОК', hintEn: 'SHOVE' });
-        case 'bat': case 'spirit': case 'shadow': case 'eye':
-          return AB({ ...BITE, weight: 1.0, cooldown: 2.6, hintRu: 'ХВАТКА', hintEn: 'GRAB' });
-        case 'dragon':
-          return AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.8, hintRu: 'ТАРАН', hintEn: 'RAM' });
-        default:
-          return AB({ ...BITE_RAM, weight: 1.0, cooldown: 2.6, hintRu: 'ТАРАН', hintEn: 'RAM' });
-      }
-    };
-    const second = pick2();
-    if (second && !(second.body === bodyBody && second.hintRu === out[0].hintRu)) out.push(second);
+    pushShapeSecond();
   }
 
   // 3) Рёв — РЕДКАЯ третья у крупных силуэтов (только у ~половины по id): это

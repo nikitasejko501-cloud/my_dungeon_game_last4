@@ -11,7 +11,7 @@ import { drawPuddles, insidePuddle, makePuddle, puddleColor, updatePuddles } fro
 import type { GroundPuddle } from './hazards';
 import { arrowElement, arrowKindFor, arrowProfile, drawArrow, drawArrowTrail, pushTrail } from './arrows';
 import type { ArrowKind, TrailPoint } from './arrows';
-import { attackForPhase, bossPhase as bossPhaseOf, fanAngles, groundLinePoints, kitForBoss, phaseDamageMul, rainTargets, ringAngles } from './bossAttacks';
+import { attackForPhase, bossPhase as bossPhaseOf, escalateForPhase, fanAngles, groundLinePoints, kitForBoss, phaseDamageMul, rainTargets, ringAngles } from './bossAttacks';
 import type { BossAttackDef, BossKit } from './bossAttacks';
 import { monsterSprites } from './spriteLoader';
 import { gaitForShape, gaitPose, gaitPhaseRate, idleBreath, GaitPose, flapStroke, flapsWings, hopsInsteadOfWalking, jumpArc } from './dungeonIdentity';
@@ -219,6 +219,27 @@ interface Particle {
  * РР”РЈР©РђРЇ РђРўРђРљРђ Р‘РћРЎРЎРђ. РҐСЂР°РЅРёС‚ РІСЃС‘, С‡С‚Рѕ РЅСѓР¶РЅРѕ Рё РґР»СЏ Р»РѕРіРёРєРё (РєРѕРіРґР° Р±РёС‚СЊ),
  * Рё РґР»СЏ РѕС‚СЂРёСЃРѕРІРєРё С‚РµР»РµРіСЂР°С„Р° (С‡С‚Рѕ РїРѕРєР°Р·Р°С‚СЊ РёРіСЂРѕРєСѓ).
  */
+/**
+ * ЛУЧ ВЗГЛЯДА — «стойкий» приём: горит вдоль направления несколько секунд.
+ * Урон по кадру, поэтому стоять в коридоре нельзя ни секунды.
+ */
+export interface BossBeam {
+  x: number;
+  y: number;
+  /** Направление луча (радианы). */
+  ang: number;
+  /** Длина луча, px. */
+  len: number;
+  /** Полуширина коридора, px. */
+  width: number;
+  /** Урон за секунду пребывания в коридоре. */
+  dps: number;
+  /** Осталось жизни, сек. */
+  life: number;
+  /** Цвет для отрисовки. */
+  color: string;
+}
+
 export interface BossCast {
   /** РљС‚Рѕ РєР°СЃС‚СѓРµС‚. */
   bossId: string;
@@ -369,6 +390,13 @@ export class CombatEngine {
 
   // РќР°Р·РµРјРЅС‹Рµ Р·РѕРЅС‹ (РєРёСЃР»РѕС‚Р° СЃР»РёР·РЅСЏ, РіРѕСЂСЏС‰РёР№ СЃР»РµРґ РґСЂР°РєРѕРЅР°, РїР°СѓС‚РёРЅР°) Рё С‚СЂСЏСЃРєР° СЌРєСЂР°РЅР°
   puddles: GroundPuddle[] = [];
+  /**
+   * ЛУЧИ ВЗГЛЯДА (форма 'beam'). Приём gazeBeam был объявлен, но не имел ни
+   * обработки, ни отрисовки — глаз/призрак/кристалл физически не могли его
+   * применить. Теперь луч живёт на поле как отдельная сущность: несколько секунд
+   * горит вдоль направления, бьёт игрока попаданием в коридор и гаснет.
+   */
+  beams: BossBeam[] = [];
   shake = 0;
   /**
    * В«Р—РђРњРђРҐВ» Р‘РћРЎРЎРђ вЂ” РёРґСѓС‰Р°СЏ Р°С‚Р°РєР°. Р Р°РЅСЊС€Рµ Р±РѕСЃСЃ РїСЂРёРјРµРЅСЏР» СЃРїРѕСЃРѕР±РЅРѕСЃС‚СЊ
@@ -1421,6 +1449,50 @@ export class CombatEngine {
         this.spawnHitParticles(p.x, p.y, puddleColor(pd.element));
       }
     });
+    this.updateBeams(dt);
+  }
+
+  /**
+   * ЛУЧИ ВЗГЛЯДА: тик жизни + урон по коридору. Урон идёт каждый кадр (dps),
+   * поэтому войти в луч — значит мгновенно терять здоровье и сразу выходить.
+   * Попадание считается, если проекция игрока на ось лежит в [0, len], а
+   * расстояние до оси меньше полуширины коридора.
+   */
+  updateBeams(dt: number) {
+    const p = this.player;
+    for (let i = this.beams.length - 1; i >= 0; i--) {
+      const b = this.beams[i];
+      b.life -= dt;
+      if (b.life <= 0) { this.beams.splice(i, 1); continue; }
+      const dx = p.x - b.x, dy = p.y - b.y;
+      const along = dx * Math.cos(b.ang) + dy * Math.sin(b.ang);
+      if (along < 0 || along > b.len) continue;
+      const perp = Math.abs(-dx * Math.sin(b.ang) + dy * Math.cos(b.ang));
+      if (perp > b.width) continue;
+      this.playerTakeDamage(b.dps * dt);
+      this.spawnHitParticles(p.x, p.y, b.color);
+    }
+  }
+
+  /** Луч на поле: горячее ядро + мягкий ореол. Только базовые вызовы канвы. */
+  drawBeams(ctx: CanvasRenderingContext2D, now: number) {
+    for (const b of this.beams) {
+      const fade = Math.max(0, Math.min(1, b.life));
+      const flicker = 0.85 + 0.15 * Math.sin(now * 26 + b.ang * 7);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.ang);
+      ctx.globalAlpha = 0.20 * fade;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(0, -b.width * 1.6, b.len, b.width * 3.2);
+      ctx.globalAlpha = 0.55 * fade * flicker;
+      ctx.fillRect(0, -b.width * 0.6, b.len, b.width * 1.2);
+      ctx.globalAlpha = 0.9 * fade;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, -b.width * 0.18, b.len, b.width * 0.36);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   /**
@@ -1899,7 +1971,10 @@ export class CombatEngine {
     // Благодаря этому игрок реально видит «много интересных атак».
     const idx = ((this.bossAtkIdx[e.id] || 0) + 1) % kit.all.length;
     this.bossAtkIdx[e.id] = idx;
-    const atk = kit.all[idx] || attackForPhase(kit, hpFrac);
+    // ФАЗА МЕНЯЕТ САМ ПРИЁМ, а не только урон (escalateForPhase): в фазах 2/3
+    // босс добавляет снаряды и сокращает замах. Пресет не мутируется — берётся
+    // копия, иначе поздняя фаза испортила бы раннюю для всего забега.
+    const atk = escalateForPhase(kit.all[idx] || attackForPhase(kit, hpFrac), phase);
     const aim = Math.atan2(this.player.y - e.y, this.player.x - e.x);
 
     // РћС‡РєРё РїСЂРёС†РµР»РёРІР°РЅРёСЏ СЃС‡РёС‚Р°СЋС‚СЃСЏ Р—РђР РђРќР•Р• Рё СЂРёСЃСѓСЋС‚СЃСЏ РєР°Рє С‚РµР»РµРіСЂР°С„:
@@ -2052,6 +2127,14 @@ export class CombatEngine {
       if (this.dist(e.x, e.y, this.player.x, this.player.y) < e.def.radius * 1.4 + 16) {
         this.playerTakeDamage(c.damage);
       }
+    } else if (a.form === 'beam') {
+      // ЛУЧ ВЗГЛЯДА: коридор от босса в сторону игрока. Живёт дольше обычного
+      // приёма, поэтому заставляет игрока уходить из линии огня, а не просто
+      // «перетерпеть замах».
+      this.beams.push({
+        x: e.x, y: e.y, ang: c.aim, len: a.radius, width: 26,
+        dps: Math.max(1, c.damage), life: 1.6, color: col,
+      });
     }
 
     // Р›СѓР¶Р° РїРѕРґ Р±РѕСЃСЃРѕРј РґР»СЏ В«Р·РѕРЅРѕРІС‹С…В» Р°С‚Р°Рє (Сѓ РґРѕР¶РґСЏ СЃРІРѕСЏ вЂ” С‚Р°Рј РїРѕ С‚РѕС‡РєР°Рј).
@@ -2757,6 +2840,7 @@ export class CombatEngine {
 
     // Р›СѓР¶Рё/Р·РѕРЅС‹ РЅР° Р·РµРјР»Рµ вЂ” РїРѕРґ РјРѕРЅСЃС‚СЂР°РјРё, РїРѕРІРµСЂС… С„РѕРЅР°
     drawPuddles(ctx, this.puddles, now);
+    this.drawBeams(ctx, now);
 
     for (const e of this.enemies) {
       this.renderEnemy(e);
