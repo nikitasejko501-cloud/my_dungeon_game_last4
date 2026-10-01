@@ -392,6 +392,14 @@ export function SkillIcon({ name, size = 48, className = '' }: { name: string; s
         <path d="M 34 34 L 44 44" stroke="#7a2a2a" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
     ),
+    'skill_assassin_sickle': (
+      <svg viewBox="0 0 48 48" width={size} height={size} className={className}>
+        <path d="M 8 12 L 20 12 L 24 26" fill="none" stroke="#5a3a1a" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M 24 26 Q 40 14 38 34" fill="none" stroke="#c0a0a0" strokeWidth="4" strokeLinecap="round" />
+        <path d="M 38 34 L 30 30" fill="none" stroke="#c0a0a0" strokeWidth="3" strokeLinecap="round" />
+        <path d="M 10 22 Q 24 40 40 40" fill="none" stroke="#9b3c3c" strokeWidth="2" strokeDasharray="4 4" opacity="0.75" />
+      </svg>
+    ),
     'skill_assassin_shadowstep': (
       <svg viewBox="0 0 48 48" width={size} height={size} className={className}>
         <circle cx="14" cy="24" r="8" fill="#9b3c3c" opacity="0.4" />

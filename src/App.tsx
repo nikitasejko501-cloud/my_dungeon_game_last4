@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { SaveProfile, ScreenName, Platform, CharacterClass, CapturedBoss, Trophy, GameMode, CombatResult } from './types';
-import { CHARACTERS, DUNGEONS, POTIONS, BAG_LEVELS, ENEMIES, MAX_WAVES, EXP_PER_LEVEL, EXP_LEVEL_MULTIPLIER, POTION_COOLDOWN, TALENT_DAMAGE_COST, TALENT_HEALTH_COST, TALENT_BONUS_PER_LEVEL, SHIELD_COST_MULTIPLIER, SHIELD_HITS_MULTIPLIER, MAX_SHIELD_LEVEL } from './gameData';
+import { CHARACTERS, DUNGEONS, POTIONS, BAG_LEVELS, ENEMIES, MAX_WAVES, EXP_PER_LEVEL, EXP_LEVEL_MULTIPLIER, POTION_COOLDOWN, TALENT_BONUS_PER_LEVEL, TALENT_BASE_COST, talentCost, POTION_MAX_BY_ID } from './gameData';
 import { loadGame, saveGame, resetGame, registerAutosave } from './saveSystem';
 import { audio } from './audio';
 import { CombatEngine, CombatCallbacks } from './combatEngine';
@@ -238,6 +238,16 @@ export default function App() {
   // === GUILD: POTION PURCHASE ===
   const buyPotion = (potionId: 'health' | 'stamina' | 'revival') => {
     const potion = POTIONS.find(p => p.id === potionId)!;
+    const owned = profile.ownedPotions[potionId] || 0;
+    const maxOwned = POTION_MAX_BY_ID[potionId];
+    // Capacity check: refused while the slot is full, allowed again once a potion is used
+    if (owned >= maxOwned) {
+      showToast(t(profile,
+        `Максимум: ${maxOwned} шт. — ${potion.name.ru}. Выпейте зелье, чтобы освободить место`,
+        `Maximum: ${maxOwned} — ${potion.name.en}. Use one to free a slot`), 'error');
+      audio.playSfx('reject');
+      return;
+    }
     if (profile.gold < potion.cost) {
       showToast(t(profile, 'Недостаточно золота', 'Not enough gold'), 'error');
       audio.playSfx('reject');
@@ -246,9 +256,9 @@ export default function App() {
     audio.playSfx('purchase');
     updateProfile({
       gold: profile.gold - potion.cost,
-      ownedPotions: { ...profile.ownedPotions, [potionId]: profile.ownedPotions[potionId] + 1 },
+      ownedPotions: { ...profile.ownedPotions, [potionId]: owned + 1 },
     });
-    showToast(t(profile, `Куплено: ${potion.name.ru}`, `Bought: ${potion.name.en}`), 'success');
+    showToast(t(profile, `Куплено: ${potion.name.ru} (${owned + 1}/${maxOwned})`, `Bought: ${potion.name.en} (${owned + 1}/${maxOwned})`), 'success');
   };
 
   // === GUILD: BAG UPGRADE ===
@@ -450,6 +460,18 @@ export default function App() {
         onPotionCooldownUpdate: (type, cd, max) => {
           setHudData(prev => type === 'health' ? { ...prev, healthCd: cd } : { ...prev, staminaCd: cd });
         },
+        onPotionBlocked: (type, reason) => {
+          const lang = profileRef.current.language;
+          const ru = lang === 'ru';
+          const msg = reason === 'full-health'
+            ? (ru ? 'Нельзя выпить зелье здоровья: здоровье на максимуме' : 'Cannot drink Health Potion: health is already full')
+            : reason === 'full-stamina'
+              ? (ru ? 'Нельзя выпить зелье выносливости: выносливость на максимуме' : 'Cannot drink Stamina Potion: stamina is already full')
+              : reason === 'cooldown'
+                ? (ru ? 'Зелье ещё не готово (перезарядка)' : 'Potion is still on cooldown')
+                : (ru ? 'У вас нет такого зелья' : 'You have none of that potion');
+          showToast(msg, 'error');
+        },
         onWaveResult: (result, wave, goldEarned, expEarned) => {
           setWaveResult({ result, wave, gold: goldEarned, exp: expEarned });
         },
@@ -461,10 +483,6 @@ export default function App() {
             bossName2: bossName2 || null,
             bossHp2: hpPercent2 ?? 0,
           }));
-        },
-        onShieldHit: (remainingHits) => {
-          // Update shield hits in profile via ref without causing re-render mid-combat
-          profileRef.current = { ...profileRef.current, shieldHits: remainingHits };
         },
       };
 
@@ -643,17 +661,19 @@ export default function App() {
   };
 
   // === TALENT PURCHASE (per-character) ===
+  // Цена растёт: за каждый уровень таланта и за каждую пройденную волну —
+  // примерно так же, насколько растёт золото, капающее после волны.
   const buyTalent = (type: 'damage' | 'health') => {
-    const cost = type === 'damage' ? TALENT_DAMAGE_COST : TALENT_HEALTH_COST;
+    const charId = profile.equippedCharacter;
+    const charTalents = profile.talentLevels[charId] || { damage: 0, health: 0 };
+    const currentLevel = charTalents[type];
+    const cost = talentCost(currentLevel, profile.totalWavesCleared);
     if (profile.gold < cost) {
       showToast(t(profile, 'Недостаточно золота', 'Not enough gold'), 'error');
       audio.playSfx('reject');
       return;
     }
     audio.playSfx('skill-up');
-    const charId = profile.equippedCharacter;
-    const charTalents = profile.talentLevels[charId] || { damage: 0, health: 0 };
-    const currentLevel = charTalents[type];
     updateProfile({
       gold: profile.gold - cost,
       talentLevels: {
@@ -662,52 +682,6 @@ export default function App() {
       },
     });
     showToast(t(profile, `Талант улучшен до ур. ${currentLevel + 1}`, `Talent upgraded to lvl ${currentLevel + 1}`), 'success');
-  };
-
-  // === SHIELD PURCHASE (warrior only) ===
-  const buyShield = () => {
-    const nextLevel = profile.shieldLevel + 1;
-    if (nextLevel > MAX_SHIELD_LEVEL) {
-      showToast(t(profile, 'Максимальный уровень щита', 'Shield at max level'), 'info');
-      return;
-    }
-    const cost = nextLevel * SHIELD_COST_MULTIPLIER;
-    if (profile.gold < cost) {
-      showToast(t(profile, 'Недостаточно золота', 'Not enough gold'), 'error');
-      audio.playSfx('reject');
-      return;
-    }
-    audio.playSfx('purchase');
-    updateProfile({
-      gold: profile.gold - cost,
-      shieldLevel: nextLevel,
-      shieldHits: nextLevel * SHIELD_HITS_MULTIPLIER,
-    });
-    showToast(t(profile, `Щит улучшен до ур. ${nextLevel}`, `Shield upgraded to lvl ${nextLevel}`), 'success');
-  };
-
-  const toggleShieldEquip = () => {
-    if (profile.shieldLevel === 0) {
-      showToast(t(profile, 'Сначала купите щит', 'Buy a shield first'), 'error');
-      return;
-    }
-    audio.playSfx('ui-click');
-    if (profile.shieldEquipped) {
-      // Unequip shield → restore Heavy Charge if available
-      updateProfile({ shieldEquipped: false, shieldHits: profile.shieldLevel * SHIELD_HITS_MULTIPLIER });
-      showToast(t(profile, 'Щит снят, рывок восстановлен', 'Shield unequipped, charge restored'), 'info');
-    } else {
-      // Check if warrior has Heavy Charge unlocked → mutual exclusivity
-      const char = CHARACTERS.find(c => c.id === profile.equippedCharacter)!;
-      const unlocked = profile.unlockedSkills[profile.equippedCharacter] || [];
-      if (char.id === 'warrior' && unlocked.includes('w_charge')) {
-        showToast(t(profile, 'Тяжёлый Прорыв несовместим с щитом. Сначала снимите рывок в навыках.', 'Heavy Charge incompatible with shield. Remove charge skill first.'), 'error');
-        return;
-      }
-      const maxHits = profile.shieldLevel * SHIELD_HITS_MULTIPLIER;
-      updateProfile({ shieldEquipped: true, shieldHits: maxHits });
-      showToast(t(profile, 'Щит экипирован (заряд заменяет рывок)', 'Shield equipped (charge replaced)'), 'success');
-    }
   };
 
   const exitToGuild = () => {
@@ -939,8 +913,6 @@ export default function App() {
           takeTrophyBack={takeTrophyBack}
           startCombat={startCombat}
           buyTalent={buyTalent}
-          buyShield={buyShield}
-          toggleShieldEquip={toggleShieldEquip}
           resetWaveProgress={resetWaveProgress}
           onBack={() => { audio.playSfx('ui-click'); setScreen('title'); }}
         />
@@ -954,6 +926,9 @@ export default function App() {
       <div className="app-container" style={{ filter: `brightness(${profile.settings.brightness}%)` }}>
         <div className="combat-screen">
           <canvas ref={canvasRef} className="combat-canvas" />
+
+          {/* Prominent potion/max-limit messages (health/stamina at maximum, etc.) */}
+          {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
 
           {/* HUD Top Left: Health, Stamina, Exp bars */}
           <div className="hud-top-left">
@@ -1260,8 +1235,6 @@ interface GuildScreenProps {
   takeTrophyBack: (uid: string) => void;
   startCombat: () => void;
   buyTalent: (type: 'damage' | 'health') => void;
-  buyShield: () => void;
-  toggleShieldEquip: () => void;
   resetWaveProgress: () => void;
   onBack: () => void;
 }
@@ -1375,6 +1348,8 @@ function GuildScreen(props: GuildScreenProps) {
               {(() => {
                 const equippedChar = CHARACTERS.find(c => c.id === profile.equippedCharacter)!;
                 const charTalents = profile.talentLevels[profile.equippedCharacter] || { damage: 0, health: 0 };
+                const dmgCost = talentCost(charTalents.damage, profile.totalWavesCleared);
+                const hpCost = talentCost(charTalents.health, profile.totalWavesCleared);
                 return (
                   <div className="skill-tree-container" style={{ marginBottom: '32px', borderColor: 'var(--color-gold-bright)' }}>
                     <div className="skill-tree-header">
@@ -1392,15 +1367,15 @@ function GuildScreen(props: GuildScreenProps) {
                           <svg viewBox="0 0 48 48" width="40" height="40"><path d="M24 8 L28 20 L40 20 L30 28 L34 40 L24 32 L14 40 L18 28 L8 20 L20 20 Z" fill="#df5f2f" /></svg>
                         </div>
                         <div className="skill-info">
-                          <div className="skill-name">{tt('Увеличить урон на +10%', 'Increase Damage by +10%')}</div>
-                          <div className="skill-desc">{tt('Многократная покупка: каждый уровень добавляет +10% к урону', 'Repeatable: each level adds +10% damage')}</div>
+                          <div className="skill-name">{tt('Увеличить урон на +15%', 'Increase Damage by +15%')}</div>
+                          <div className="skill-desc">{tt('Многократная покупка: каждый уровень добавляет +15% к урону. Цена растёт вместе с золотом за волны', 'Repeatable: each level adds +15% damage. Price scales with wave income')}</div>
                           <div style={{ fontSize: '12px', color: 'var(--color-gold-bright)' }}>
                             {tt('Уровень', 'Level')}: {charTalents.damage} — {tt('Бонус', 'Bonus')}: +{Math.round(charTalents.damage * TALENT_BONUS_PER_LEVEL * 100)}%
                           </div>
                         </div>
                         <div className="skill-action">
-                          <span className="skill-price">{TALENT_DAMAGE_COST} {tt('зол.', 'gold')}</span>
-                          <button className="btn-buy" disabled={profile.gold < TALENT_DAMAGE_COST} onClick={() => props.buyTalent('damage')}>
+                          <span className="skill-price">{dmgCost} {tt('зол.', 'gold')}</span>
+                          <button className="btn-buy" disabled={profile.gold < dmgCost} onClick={() => props.buyTalent('damage')}>
                             {tt('Улучшить', 'Upgrade')}
                           </button>
                         </div>
@@ -1410,97 +1385,28 @@ function GuildScreen(props: GuildScreenProps) {
                           <svg viewBox="0 0 48 48" width="40" height="40"><path d="M24 8 L32 16 L32 30 L24 40 L16 30 L16 16 Z" fill="#df3f5f" /></svg>
                         </div>
                         <div className="skill-info">
-                          <div className="skill-name">{tt('Увеличить макс. здоровье на +10%', 'Increase Max Health by +10%')}</div>
-                          <div className="skill-desc">{tt('Многократная покупка: каждый уровень добавляет +10% к макс. здоровью', 'Repeatable: each level adds +10% to max health')}</div>
+                          <div className="skill-name">{tt('Увеличить макс. здоровье на +15%', 'Increase Max Health by +15%')}</div>
+                          <div className="skill-desc">{tt('Многократная покупка: каждый уровень добавляет +15% к макс. здоровью. Цена растёт вместе с золотом за волны', 'Repeatable: each level adds +15% to max health. Price scales with wave income')}</div>
                           <div style={{ fontSize: '12px', color: 'var(--color-gold-bright)' }}>
                             {tt('Уровень', 'Level')}: {charTalents.health} — {tt('Бонус', 'Bonus')}: +{Math.round(charTalents.health * TALENT_BONUS_PER_LEVEL * 100)}%
                           </div>
                         </div>
                         <div className="skill-action">
-                          <span className="skill-price">{TALENT_HEALTH_COST} {tt('зол.', 'gold')}</span>
-                          <button className="btn-buy" disabled={profile.gold < TALENT_HEALTH_COST} onClick={() => props.buyTalent('health')}>
+                          <span className="skill-price">{hpCost} {tt('зол.', 'gold')}</span>
+                          <button className="btn-buy" disabled={profile.gold < hpCost} onClick={() => props.buyTalent('health')}>
                             {tt('Улучшить', 'Upgrade')}
                           </button>
                         </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-dim)', marginTop: '8px' }}>
+                        {tt(`Первая покупка — ${TALENT_BASE_COST} зол. Дальше дороже с каждым уровнем и каждой пройденной волной.`, `First upgrade — ${TALENT_BASE_COST} gold. It gets pricier with every level and every wave cleared.`)}
                       </div>
                     </div>
                   </div>
                 );
               })()}
 
-              {/* Shield Shop (warrior only) */}
-              {profile.equippedCharacter === 'warrior' && (
-                <div className="skill-tree-container" style={{ marginBottom: '32px', borderColor: 'var(--color-primary-bright)' }}>
-                  <div className="skill-tree-header">
-                    <div className="skill-tree-char-icon" style={{ background: 'rgba(95,160,255,0.15)' }}>
-                      <svg viewBox="0 0 48 48" width="40" height="40"><path d="M24 6 L36 12 L36 26 Q36 38 24 44 Q12 38 12 26 L12 12 Z" fill="#5fa0ff" stroke="#3a7acc" strokeWidth="2" /></svg>
-                    </div>
-                    <div>
-                      <div className="skill-tree-char-name">{tt('Щит Воина', 'Warrior Shield')}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-dim)' }}>
-                        {tt('Заменяет рывок (ПКМ) на блок щитом', 'Replaces charge (RMB) with shield block')}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="skill-tree-list">
-                    <div className={`skill-item ${profile.shieldLevel > 0 ? 'unlocked' : 'locked'}`}>
-                      <div className="skill-icon-box">
-                        <svg viewBox="0 0 48 48" width="40" height="40"><path d="M24 6 L36 12 L36 26 Q36 38 24 44 Q12 38 12 26 L12 12 Z" fill={profile.shieldLevel > 0 ? '#5fa0ff' : '#3a3a4a'} stroke="#3a7acc" strokeWidth="2" /></svg>
-                      </div>
-                      <div className="skill-info">
-                        <div className="skill-name">{tt('Щит', 'Shield')} — {tt('Ур.', 'Lvl')} {profile.shieldLevel}/{MAX_SHIELD_LEVEL}</div>
-                        <div className="skill-desc">
-                          {tt('Поглощает удары. Зарядов: ', 'Absorbs hits. Charges: ')}{profile.shieldLevel > 0 ? profile.shieldLevel * SHIELD_HITS_MULTIPLIER : 0}
-                          <br />
-                          {tt('ПКМ: блок (взаимоисключающе с рывком)', 'RMB: block (mutually exclusive with charge)')}
-                        </div>
-                        {profile.shieldLevel > 0 && (
-                          <div style={{ fontSize: '12px', color: profile.shieldEquipped ? '#3faf3f' : 'var(--color-text-dim)' }}>
-                            {profile.shieldEquipped ? tt('Экипирован', 'Equipped') : tt('Снято', 'Unequipped')}
-                          </div>
-                        )}
-                      </div>
-                      <div className="skill-action">
-                        {profile.shieldLevel < MAX_SHIELD_LEVEL ? (
-                          <>
-                            <span className="skill-price">{(profile.shieldLevel + 1) * SHIELD_COST_MULTIPLIER} {tt('зол.', 'gold')}</span>
-                            <button className="btn-buy" disabled={profile.gold < (profile.shieldLevel + 1) * SHIELD_COST_MULTIPLIER} onClick={props.buyShield}>
-                              {tt('Улучшить', 'Upgrade')}
-                            </button>
-                          </>
-                        ) : (
-                          <span className="status-badge status-opened">{tt('Максимум', 'Max')}</span>
-                        )}
-                      </div>
-                    </div>
-                    {profile.shieldLevel > 0 && (
-                      <div className="skill-item unlocked">
-                        <div className="skill-icon-box">
-                          <svg viewBox="0 0 48 48" width="40" height="40">
-                            {profile.shieldEquipped
-                              ? <path d="M16 24 L22 30 L34 18" fill="none" stroke="#3faf3f" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                              : <path d="M24 12 V36 M12 24 H36" stroke="#df3f3f" strokeWidth="4" strokeLinecap="round" />}
-                          </svg>
-                        </div>
-                        <div className="skill-info">
-                          <div className="skill-name">{profile.shieldEquipped ? tt('Снять щит', 'Unequip Shield') : tt('Экипировать щит', 'Equip Shield')}</div>
-                          <div className="skill-desc">
-                            {profile.shieldEquipped
-                              ? tt('Снимает щит и возвращает рывок (ПКМ)', 'Removes shield and restores charge (RMB)')
-                              : tt('Экипирует щит — заменяет рывок на блок', 'Equips shield — replaces charge with block')}
-                          </div>
-                        </div>
-                        <div className="skill-action">
-                          <button className="btn-equip" onClick={props.toggleShieldEquip}>
-                            {profile.shieldEquipped ? tt('Снять', 'Unequip') : tt('Надеть', 'Equip')}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
+              {/* Skills list per character */}
               {CHARACTERS.map(char => {
                 const owned = profile.ownedCharacters.includes(char.id);
                 if (!owned) return null;
@@ -1574,7 +1480,11 @@ function GuildScreen(props: GuildScreenProps) {
 
           {tab === 'potions' && (
             <div className="guild-grid">
-              {POTIONS.map(potion => (
+              {POTIONS.map(potion => {
+                const owned = profile.ownedPotions[potion.id] || 0;
+                const maxOwned = POTION_MAX_BY_ID[potion.id];
+                const isFull = owned >= maxOwned;
+                return (
                 <div key={potion.id} className="shop-card">
                   <div className="shop-card-icon">
                     <GameIcon name={potion.icon} size={40} />
@@ -1583,18 +1493,25 @@ function GuildScreen(props: GuildScreenProps) {
                     <div className="shop-card-name">{tt(potion.name.ru, potion.name.en)}</div>
                     <div className="shop-card-desc">{tt(potion.description.ru, potion.description.en)}</div>
                     <div style={{ fontSize: '13px', color: 'var(--color-text-dim)' }}>
-                      {tt('В наличии', 'In stock')}: {profile.ownedPotions[potion.id]}
+                      {tt('В наличии', 'In stock')}: {owned} / {maxOwned}
                       {potion.hotkey && ` / ${tt('Клавиша', 'Key')}: ${potion.hotkey}`}
                     </div>
+                    {isFull && (
+                      <div style={{ fontSize: '13px', color: '#e07a5f', fontWeight: 600 }}>
+                        {tt(`Максимум: ${maxOwned} шт. Выпейте зелье, чтобы освободить место`,
+                            `Maximum: ${maxOwned}. Use one to free a slot`)}
+                      </div>
+                    )}
                   </div>
                   <div className="shop-card-action">
                     <span className="shop-card-price">{potion.cost} {tt('зол.', 'gold')}</span>
-                    <button className="btn-buy" disabled={profile.gold < potion.cost} onClick={() => props.buyPotion(potion.id)}>
-                      {tt('Купить', 'Buy')}
+                    <button className="btn-buy" disabled={profile.gold < potion.cost || isFull} onClick={() => props.buyPotion(potion.id)}>
+                      {isFull ? tt('Максимум', 'Maxed') : tt('Купить', 'Buy')}
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div className="shop-card">
                 <div className="shop-card-icon">
                   <svg viewBox="0 0 48 48" width="40" height="40"><rect x="8" y="16" width="32" height="24" rx="2" fill="#5a4a3a" stroke="#3a2a1a" strokeWidth="2" /><rect x="12" y="8" width="24" height="12" rx="2" fill="#7a6a5a" stroke="#5a4a3a" strokeWidth="2" /><circle cx="24" cy="28" r="6" fill="#c89b3c" opacity="0.3" /><circle cx="24" cy="28" r="3" fill="#c89b3c" /></svg>

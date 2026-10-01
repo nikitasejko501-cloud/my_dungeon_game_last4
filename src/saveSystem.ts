@@ -3,11 +3,28 @@ import { createDefaultProfile } from './gameData';
 
 const STORAGE_KEY = 'eota_save_v1';
 
+// Free starting skills that must always be present in a save (old saves migrate up).
+const ALWAYS_UNLOCKED: Record<string, string[]> = {
+  warrior: ['w_slash'],
+  archer: ['a_shot'],
+  mage: ['m_bolt'],
+  assassin: ['s_chain'],
+};
+
+function mergeUnlockedSkills(def: SaveProfile, data: Partial<SaveProfile>): Record<string, string[]> {
+  const merged: Record<string, string[]> = { ...def.unlockedSkills, ...(data.unlockedSkills || {}) } as Record<string, string[]>;
+  for (const charId of Object.keys(ALWAYS_UNLOCKED)) {
+    const current = merged[charId] || [];
+    merged[charId] = Array.from(new Set([...current, ...ALWAYS_UNLOCKED[charId]]));
+  }
+  return merged;
+}
+
 export function loadGame(): SaveProfile {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createDefaultProfile();
-        const data = JSON.parse(raw) as Partial<SaveProfile>;
+    const data = JSON.parse(raw) as Partial<SaveProfile>;
     const def = createDefaultProfile();
     // Migrate old dungeon IDs to new ones
     const DUNGEON_ID_MAP: Record<string, string> = {
@@ -29,12 +46,12 @@ export function loadGame(): SaveProfile {
         migratedProgress[migrateDungeon(k)] = v;
       }
     }
-    return {
+    const profile = {
       ...def,
       ...data,
       gameMode: data.gameMode || 'easy',
       ownedCharacters: data.ownedCharacters || def.ownedCharacters,
-      unlockedSkills: { ...def.unlockedSkills, ...(data.unlockedSkills || {}) },
+      unlockedSkills: mergeUnlockedSkills(def, data),
       ownedPotions: { ...def.ownedPotions, ...(data.ownedPotions || {}) },
       bag: data.bag || [],
       trophies: data.trophies || [],
@@ -43,10 +60,9 @@ export function loadGame(): SaveProfile {
       equippedDungeons: migratedEquipped,
       settings: { ...def.settings, ...(data.settings || {}) },
       talentLevels: data.talentLevels || def.talentLevels,
-      shieldLevel: data.shieldLevel ?? def.shieldLevel,
-      shieldHits: data.shieldHits ?? def.shieldHits,
-      shieldEquipped: data.shieldEquipped ?? def.shieldEquipped,
-    };
+    } as SaveProfile;
+
+    return profile;
   } catch {
     return createDefaultProfile();
   }

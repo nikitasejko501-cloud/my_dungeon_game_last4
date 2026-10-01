@@ -48,6 +48,7 @@ export interface DungeonDef {
 
 export type EnemyAttackType = 'melee' | 'ranged' | 'charger';
 export type EnemyShape = 'blob' | 'beetle' | 'spider' | 'shadow' | 'bat' | 'crystal' | 'gargoyle' | 'skeleton' | 'golem' | 'imp' | 'wolf' | 'humanoid' | 'eye' | 'spirit' | 'dragon';
+export type Element = 'fire' | 'ice' | 'poison' | 'dark' | 'storm';
 
 export interface EnemyDef {
   id: string;
@@ -68,9 +69,39 @@ export interface EnemyDef {
   shape?: EnemyShape;
   dungeonId?: string;
   hueShift?: number;
+  element?: Element;
   isFinalBoss?: boolean;
   isGreenFieldWave10?: boolean;
+  /** Мутации силуэта (рога, шипы, хвост…) — делают облик уникальным. */
+  traits?: MonsterTrait[];
+  /** Семейство походки — определяет анимацию движения. */
+  gait?: GaitKind;
+  // === ЛИЧНОСТЬ БОССА (волна 5/10/…/100) ===
+  // Всё ниже — детерминировано по id босса, поэтому двух одинаковых боссов
+  // в забеге нет: у каждого своё оружие, имя этого оружия, регалии, аура и ритм.
+  /** Личный набор оружия босса (перебивает выбор по имени/форме). */
+  weapon?: import('./monsterArt').WeaponKit;
+  /** Имя личного оружия: «Погибель Душ», «Клык Бездны»… */
+  weaponName?: { ru: string; en: string };
+  /** Вариант регалий (корона/шлем/гало/крылья/черепа) — 0..5. */
+  regalia?: number;
+  /** Стиль ауры и стихийных частиц — 0..3, у каждого босса своя анимация. */
+  aura?: number;
+  /** Множитель темпа способностей: боссы бьют в своём ритме, а не «в ногу». */
+  abilityRate?: number;
+  /** Множитель скорости цикла походки: у одного тяжёлая поступь, у другого рысь. */
+  animationRate?: number;
 }
+
+/** Мутации силуэта: рога, шипы, хвост, лишние глаза и т.п. Пекутся в спрайт. */
+export type MonsterTrait =
+  | 'horns' | 'antlers' | 'spikes' | 'crest' | 'extraEyes' | 'shell' | 'tail'
+  | 'tendrils' | 'wingMembranes' | 'boneRibs' | 'iceShards' | 'bubbleSacs'
+  | 'mane' | 'tusks' | 'armorPlates' | 'rockArmor' | 'halo' | 'crown' | 'plume'
+  | 'tentacles';
+
+/** Семейство походки — определяет, как анатомия двигается. */
+export type GaitKind = 'walk' | 'hop' | 'crawl' | 'slither' | 'float' | 'glide' | 'stomp' | 'slink';
 
 export interface PotionDef {
   id: 'health' | 'stamina' | 'revival';
@@ -135,9 +166,6 @@ export interface SaveProfile {
   };
   hasSeenIntro: boolean;
   talentLevels: Record<CharacterClass, { damage: number; health: number }>;
-  shieldLevel: number;
-  shieldHits: number;
-  shieldEquipped: boolean;
 }
 
 export interface Vec2 {

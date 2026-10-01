@@ -3,3 +3,13 @@ node_modules
 .smoke/
 out/
 *_out.txt
+
+# Артефакты инструментов и логи — не часть игры
+*.log
+preview/
+*.png
+!public/**/*.png
+dist/
+tsconfig.tsbuildinfo
+
+staged.txt

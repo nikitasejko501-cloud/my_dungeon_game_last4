@@ -11,7 +11,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "smoke": "node smoke.cjs --selftest && node smoke.cjs",
     "smoke:self": "node smoke.cjs --selftest",
-    "smoke:run": "node smoke.cjs"
+    "smoke:run": "node smoke.cjs",
+    "build:tools": "tsc --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck --outDir out src/arrows.ts src/bossAttacks.ts src/gameData.ts src/monsterArt.ts src/monsterAbilities.ts src/signatureAttacks.ts src/castCore.ts src/dungeonIdentity.ts",
+    "balance": "npm run build:tools && node balance.cjs",
+    "art": "node artpreview.cjs",
+    "stripes": "node stripeprobe.cjs --cmp",
+    "kit:audit": "npm run build:tools && node bosskitaudit.cjs",
+    "ability:audit": "npm run build:tools && node abilityaudit.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

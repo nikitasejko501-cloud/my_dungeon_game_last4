@@ -50,6 +50,9 @@ const M = {
   waves: 0, bossWaves: 0, spawns: 0, kills: 0, deaths: 0,
   bossesSeen: new Set(), signatures: new Set(), monstersSeen: new Set(),
   hazards: 0, captures: 0,
+  // НОВОЕ: покрытие систем «снаряды» и «атаки босса».
+  casts: 0, castAttacks: new Set(), castForms: new Set(), arrowKinds: new Set(),
+  arrowSpawns: 0, telegraphFrames: 0, maxCasts: 0,
 };
 
 
@@ -326,6 +329,22 @@ function runFight(o) {
   };
   const origSig = eng.startSignature;
   eng.startSignature = function (e) { M.signatures.add(this.enemySignature(e)); return origSig.call(this, e); };
+  // НОВОЕ: считаем замахи босса (startBossCast) и виды снарядов, чтобы
+  // «телеграф → удар» и «стрела, а не шар» реально покрывались смоуком.
+  const origCast = eng.startBossCast;
+  eng.startBossCast = function (e) {
+    M.casts++;
+    const c = this.casts[this.casts.length - 1];
+    if (c) { M.castAttacks.add(c.attack.id); M.castForms.add(c.attack.form); }
+    return origCast.call(this, e);
+  };
+  const origProj = eng.spawnProjectile;
+  eng.spawnProjectile = function (x, y, dir, dmg, color, fromPlayer, isArrow, isMagic, isChain, element, kind) {
+    const r = origProj.call(this, x, y, dir, dmg, color, fromPlayer, isArrow, isMagic, isChain, element, kind);
+    const pr = this.projectiles[this.projectiles.length - 1];
+    if (pr) { M.arrowKinds.add(pr.kind); M.arrowSpawns++; }
+    return r;
+  };
 
   eng.startWave = o.startWave || 1;
   try { eng.start(); } catch (e) {
@@ -368,6 +387,10 @@ function runFight(o) {
 
     if (eng.puddles.length > st.maxPuddles) st.maxPuddles = eng.puddles.length;
     if (eng.enemies.length > st.maxEnemies) st.maxEnemies = eng.enemies.length;
+    // НОВОЕ: сколько кадров босс ПРОВОДИЛ в замахе (телеграф виден игроку)
+    // и сколько замахов висело одновременно (не должно накапливаться).
+    if (eng.casts.length) M.telegraphFrames++;
+    if (eng.casts.length > M.maxCasts) M.maxCasts = eng.casts.length;
     if (eng.waveTransitionTimer > 0.05) eng.waveTransitionTimer = 0.05;   // заставку волны режем
 
     if (eng.currentWave !== waveSeen) { waveSeen = eng.currentWave; waveFrame = frame; bossFrame = -1; }
@@ -446,6 +469,12 @@ if (emptyRuns.length) fatal.push(`прогонов без единого вра�
 if (M.bossWaves === 0) fatal.push('ни одной боссовой волны');
 if (M.deaths === 0) fatal.push('смерть героя не наступила ни в одном прогоне — ветка onPlayerDeath/retryWave не проверена');
 if (M.signatures.size === 0) fatal.push('ни одной сигнатурной атаки босса');
+// НОВОЕ: атаки босса с телеграфом и виды снарядов — обязательное покрытие.
+if (M.casts === 0) fatal.push('ни одного замаха босса (startBossCast не вызывался)');
+if (M.telegraphFrames === 0) fatal.push('телеграф атаки ни разу не был виден в кадре');
+if (M.castAttacks.size < 3) fatal.push('боссами использовано меньше 3 разных атак: ' + [...M.castAttacks].join(','));
+if (M.arrowKinds.size < 3) fatal.push('снаряды менее 3 видов — «стрелы вместо шаров» не работают: ' + [...M.arrowKinds].join(','));
+if (M.maxCasts > 8) fatal.push('замахи накапливаются (' + M.maxCasts + ' одновременно) — босс не успевает их отыгрывать');
 
 console.log('\n=== ПОКРЫТИЕ ===');
 console.log('кадров прогнано :', M.frames, '| вызовов канвы :', M.draws, '| ср. рисующих вызовов на кадр:',
@@ -454,6 +483,9 @@ console.log('спрайтов (drawImage):', M.images, '| текста (fillText
 console.log('волн запущено   :', M.waves, '| из них боссовых:', M.bossWaves);
 console.log('тварей заспавнено:', M.spawns, '| видов монстров:', M.monstersSeen.size, '| боссов:', M.bossesSeen.size);
 console.log('сигнатурных атак:', M.signatures.size, M.signatures.size ? '(' + [...M.signatures].join(', ') + ')' : '');
+console.log('замахов босса    :', M.casts, '| атак:', M.castAttacks.size, M.castAttacks.size ? '(' + [...M.castAttacks].join(', ') + ')' : '');
+console.log('формы атак       :', [...M.castForms].join(', '), '| кадров с телеграфом:', M.telegraphFrames, '| макс. замахов сразу:', M.maxCasts);
+console.log('снарядов выпущено:', M.arrowSpawns, '| видов:', M.arrowKinds.size, '(' + [...M.arrowKinds].join(', ') + ')');
 console.log('смертей героя   :', M.deaths, '| возрождений/захватов босса:', M.captures);
 console.log('глубина стека save():', M.maxDepth, '(в конце кадра всегда 0 — см. пустые кадры выше)');
 
