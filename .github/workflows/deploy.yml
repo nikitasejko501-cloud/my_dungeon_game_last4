@@ -38,3 +38,9 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        # Сайт Pages в этом репозитории НИКОГДА не был создан: GET /pages отдавал
+        # 404, и deploy-pages падал на этом шаге (сборка при этом проходила).
+        # enablement: true включает Pages для репозитория прямо во время деплоя —
+        # вручную в Settings → Pages → Source: GitHub Actions ничего делать не надо.
+        with:
+          enablement: true
